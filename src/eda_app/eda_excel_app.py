@@ -4,7 +4,7 @@ import tempfile
 import hashlib
 import pandas as pd
 import streamlit as st
-from eda_excel_generation import run as eda_excel_run
+from src.eda_app.eda_excel_generation import run as eda_excel_run
 
 st.set_page_config(page_title="EDA Generation", layout="wide")
 
