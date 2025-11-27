@@ -8,6 +8,7 @@ from src.eda_app.eda_excel_generation import run as eda_excel_run
 
 st.set_page_config(page_title="EDA Generation", layout="wide")
 
+
 # ---------- helpers ----------
 def _hash_file_like(file) -> str:
     data = file.getvalue() if hasattr(file, "getvalue") else file.read()
@@ -15,7 +16,10 @@ def _hash_file_like(file) -> str:
         file.seek(0)
     return hashlib.sha256(data).hexdigest()
 
-def _auto_detect_date_column(df: pd.DataFrame, sample_max: int = 5000, threshold: float = 0.6) -> int:
+
+def _auto_detect_date_column(
+    df: pd.DataFrame, sample_max: int = 5000, threshold: float = 0.6
+) -> int:
     """
     Return the index of the column most likely to be a date.
     Heuristics:
@@ -27,7 +31,7 @@ def _auto_detect_date_column(df: pd.DataFrame, sample_max: int = 5000, threshold
     """
     if df.empty or df.shape[1] == 0:
         return 0
-    
+
     for i, c in enumerate(df.columns):
         if pd.api.types.is_datetime64_any_dtype(df[c]):
             return i
@@ -49,7 +53,13 @@ def _auto_detect_date_column(df: pd.DataFrame, sample_max: int = 5000, threshold
     if best_idx is not None and best_score >= threshold:
         if date_name_idx is not None:
             s = df.iloc[:, date_name_idx].dropna().astype(str).head(sample_max)
-            alt_score = pd.to_datetime(s, errors="coerce", infer_datetime_format=True).notna().mean() if not s.empty else 0
+            alt_score = (
+                pd.to_datetime(s, errors="coerce", infer_datetime_format=True)
+                .notna()
+                .mean()
+                if not s.empty
+                else 0
+            )
             if abs(alt_score - best_score) < 1e-9:
                 return date_name_idx
         return best_idx
@@ -57,6 +67,7 @@ def _auto_detect_date_column(df: pd.DataFrame, sample_max: int = 5000, threshold
     if date_name_idx is not None:
         return date_name_idx
     return 0
+
 
 @st.cache_data(show_spinner=False)
 def build_eda_excel_bytes(file_bytes: bytes, file_name: str, params: dict) -> bytes:
@@ -75,10 +86,13 @@ def build_eda_excel_bytes(file_bytes: bytes, file_name: str, params: dict) -> by
         with open(result_path, "rb") as fh:
             return fh.read()
 
+
 # ---------- main ----------
 def run_excel_eda():
     st.title("📈 EDA Generation")
-    st.caption("Upload a CSV and configure parameters. Generates a formatted Excel workbook.")
+    st.caption(
+        "Upload a CSV and configure parameters. Generates a formatted Excel workbook."
+    )
 
     # Upload
     up = st.file_uploader("**Upload CSV**", type=["csv"], key="eda_uploader")
@@ -92,48 +106,47 @@ def run_excel_eda():
     st.markdown("##### Select Key Fields")
     auto_date_idx = _auto_detect_date_column(df)
     date_var = st.selectbox(
-        "Date column",
-        options=df.columns,
-        index=auto_date_idx,
-        key="eda_date_var"
+        "Date column", options=df.columns, index=auto_date_idx, key="eda_date_var"
     )
 
     grain_label = st.radio(
         "Date granularity",
-        ["Daily","Weekly", "Monthly"],
+        ["Daily", "Weekly", "Monthly"],
         index=1,
         horizontal=True,
-        key="eda_date_grain_label"
+        key="eda_date_grain_label",
     )
     grain_map = {"Weekly": "weekly", "Monthly": "monthly", "Daily": "daily"}
     date_grain = grain_map[grain_label]
 
-    default_metric_idx = list(df.columns).index("Metrics") if "Metrics" in df.columns else 0
-    default_value_idx  = list(df.columns).index("Values")  if "Values"  in df.columns else 0
+    default_metric_idx = (
+        list(df.columns).index("Metrics") if "Metrics" in df.columns else 0
+    )
+    default_value_idx = (
+        list(df.columns).index("Values") if "Values" in df.columns else 0
+    )
 
     metric_var = st.selectbox(
         "Metric column",
         options=df.columns,
         index=default_metric_idx,
-        key="eda_metric_var"
+        key="eda_metric_var",
     )
     value_var = st.selectbox(
-        "Value column",
-        options=df.columns,
-        index=default_value_idx,
-        key="eda_value_var"
+        "Value column", options=df.columns, index=default_value_idx, key="eda_value_var"
     )
 
     metric_names = (
         df[metric_var].dropna().astype(str).str.strip().unique().tolist()
-        if metric_var in df.columns else []
+        if metric_var in df.columns
+        else []
     )
     cost_metric_options = ["(None)"] + sorted(metric_names)
     cost_metric = st.selectbox(
         "Cost/Spend metric (optional)",
         options=cost_metric_options,
         index=0,
-        key="eda_cost_metric"
+        key="eda_cost_metric",
     )
     cost_var = "" if cost_metric == "(None)" else cost_metric
 
@@ -145,12 +158,12 @@ def run_excel_eda():
     qc_vars = st.multiselect(
         "Select column(s) to split data into individual Excel tab",
         options=dim_candidates,
-        key="eda_qc_vars"
+        key="eda_qc_vars",
     )
     breakdown = st.multiselect(
         "Select Column(s) to split metrics by (e.g., Region, Subchannel)",
         options=[c for c in dim_candidates if c not in qc_vars],
-        key="eda_breakdown"
+        key="eda_breakdown",
     )
 
     params = {
@@ -163,7 +176,7 @@ def run_excel_eda():
         "value_var": value_var,
         "cost_var": cost_var,
     }
-       
+
     # ----- Color Customization -----
     st.markdown("#### Customize Colors")
 
@@ -174,10 +187,24 @@ def run_excel_eda():
 
     # Default colors
     default_graph_colors = [
-        '#12295D', '#00CACF', '#5B19C4', '#60608D',
-        '#FFDC69', '#FF644C', '#06757E', '#996DDF', '#A2F9FB',
-        '#41547D', '#FFAA00', '#2B49A6', '#439CA3', '#AEAEBC',
-        '#E5E5E9', '#FFF3CD', '#111D23', '#F23A1D'
+        "#12295D",
+        "#00CACF",
+        "#5B19C4",
+        "#60608D",
+        "#FFDC69",
+        "#FF644C",
+        "#06757E",
+        "#996DDF",
+        "#A2F9FB",
+        "#41547D",
+        "#FFAA00",
+        "#2B49A6",
+        "#439CA3",
+        "#AEAEBC",
+        "#E5E5E9",
+        "#FFF3CD",
+        "#111D23",
+        "#F23A1D",
     ]
     default_tab_color = "#12295D"
 
@@ -185,7 +212,11 @@ def run_excel_eda():
 
     # ----- Graph Colors -----
     with left:
-        graph_choice = st.radio("**Choose Color for Visual Formatting**", ["Use Default Colors", "Pick Your Own"], key="graph_choice")
+        graph_choice = st.radio(
+            "**Choose Color for Visual Formatting**",
+            ["Use Default Colors", "Pick Your Own"],
+            key="graph_choice",
+        )
 
         if graph_choice == "Use Default Colors":
             st.session_state.graph_colors = default_graph_colors.copy()
@@ -205,10 +236,19 @@ def run_excel_eda():
                     st.session_state.graph_colors.append(graph_color)
 
             def update_graph_colors():
-                updated = [c.strip() for c in st.session_state.graph_input.split(",") if c.strip().startswith("#") and len(c.strip()) == 7]
+                updated = [
+                    c.strip()
+                    for c in st.session_state.graph_input.split(",")
+                    if c.strip().startswith("#") and len(c.strip()) == 7
+                ]
                 st.session_state.graph_colors = updated
 
-            st.text_input("Insert HEX Colors (comma seperated)", value=",".join(st.session_state.graph_colors), key="graph_input", on_change=update_graph_colors)
+            st.text_input(
+                "Insert HEX Colors (comma seperated)",
+                value=",".join(st.session_state.graph_colors),
+                key="graph_input",
+                on_change=update_graph_colors,
+            )
 
             st.write("Selected Colors:")
             selected_html = "<div style='display:flex;flex-wrap:wrap;'>"
@@ -219,17 +259,26 @@ def run_excel_eda():
 
     # ----- Tab Color -----
     with right:
-        tab_choice = st.radio("**Choose Color for Excel Formatting**", ["Use Default Color", "Pick Your Own"], key="tab_choice")
+        tab_choice = st.radio(
+            "**Choose Color for Excel Formatting**",
+            ["Use Default Color", "Pick Your Own"],
+            key="tab_choice",
+        )
 
         if tab_choice == "Use Default Color":
             st.session_state.tab_color = default_tab_color
             st.write("Using default excel color:")
-            st.markdown(f"<div style='background:{default_tab_color};width:40px;height:40px;margin:2px;border:1px solid #ccc;border-radius:4px;'></div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='background:{default_tab_color};width:40px;height:40px;margin:2px;border:1px solid #ccc;border-radius:4px;'></div>",
+                unsafe_allow_html=True,
+            )
         else:
             if st.session_state.tab_color == default_tab_color:
                 st.session_state.tab_color = "#12295D"
 
-            tab_color_picker = st.color_picker("Pick Tab Color", value=st.session_state.tab_color)
+            tab_color_picker = st.color_picker(
+                "Pick Tab Color", value=st.session_state.tab_color
+            )
             if st.button("Set Tab Color"):
                 st.session_state.tab_color = tab_color_picker
 
@@ -238,14 +287,21 @@ def run_excel_eda():
                 if val.startswith("#") and len(val) == 7:
                     st.session_state.tab_color = val
 
-            st.text_input("Insert HEX Color", value=st.session_state.tab_color, key="tab_input", on_change=update_tab_color)
+            st.text_input(
+                "Insert HEX Color",
+                value=st.session_state.tab_color,
+                key="tab_input",
+                on_change=update_tab_color,
+            )
 
             st.write("Selected Color:")
-            st.markdown(f"<div style='background:{st.session_state.tab_color};width:40px;height:40px;margin:2px;border:1px solid #ccc;border-radius:4px;'></div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='background:{st.session_state.tab_color};width:40px;height:40px;margin:2px;border:1px solid #ccc;border-radius:4px;'></div>",
+                unsafe_allow_html=True,
+            )
 
     params["graph_colors"] = st.session_state.graph_colors
     params["tab_color"] = st.session_state.tab_color
-
 
     # Export
     st.markdown("#### Export")
@@ -253,9 +309,7 @@ def run_excel_eda():
 
     with st.spinner("Preparing workbook..."):
         excel_bytes = build_eda_excel_bytes(
-            file_bytes=up.getvalue(),
-            file_name=up.name,
-            params=params
+            file_bytes=up.getvalue(), file_name=up.name, params=params
         )
 
     st.download_button(
@@ -263,8 +317,9 @@ def run_excel_eda():
         data=excel_bytes,
         file_name="EDA_Final_Output.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        key="eda_generate_and_download"
+        key="eda_generate_and_download",
     )
+
 
 if __name__ == "__main__":
     run_excel_eda()
