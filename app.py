@@ -14,8 +14,8 @@ choice = st.sidebar.radio(
 )
 
 if choice == "Data Preparation":
-    runpy.run_path("eda_data_Processing.py", run_name="__main__")
+    runpy.run_path("./src/eda_data_Processing.py", run_name="__main__")
 
 else:
-    from eda_excel_app import run_excel_eda
+    from src.eda_excel_app import run_excel_eda
     run_excel_eda()
