@@ -36,14 +36,12 @@ if 'multi_mode' not in st.session_state:
     st.session_state.multi_mode = False
 if 'column_mappings_multi' not in st.session_state:
     st.session_state.column_mappings_multi = []
-# Raw data + per-file settings
 if 'raw_data' not in st.session_state:
     st.session_state.raw_data = {}            # {file_key: raw_df}
 if 'date_settings' not in st.session_state:
     st.session_state.date_settings = {}       # {file_key: {"date_col": str, "new_name": str}}
 if 'channel_settings' not in st.session_state:
     st.session_state.channel_settings = {}    # {file_key: {mode/cols/values}}
-# Breakdown state
 if 'breakdown_state' not in st.session_state:
     st.session_state.breakdown_state = {}
 
@@ -78,14 +76,35 @@ def load_file_to_df(uploaded):
     df["_source_file_display"] = safe_filename(name)
     return df
 
+# def is_effectively_numeric(series, threshold=0.99):
+#     if pd.api.types.is_datetime64_any_dtype(series):
+#         return False
+#     coerced = pd.to_numeric(series, errors='coerce')
+#     if len(series) == 0:
+#         return False
+#     non_numeric_ratio = coerced.isna().sum() / len(series)
+#     return non_numeric_ratio < threshold
+
 def is_effectively_numeric(series, threshold=0.99):
     if pd.api.types.is_datetime64_any_dtype(series):
         return False
-    coerced = pd.to_numeric(series, errors='coerce')
-    if len(series) == 0:
-        return False
-    non_numeric_ratio = coerced.isna().sum() / len(series)
+
+    if series.dtype == 'O':
+        s_clean = _preclean_numeric_strings(series)
+        mask = s_clean != ""
+        if not mask.any():
+            return False
+        coerced = pd.to_numeric(s_clean[mask], errors='coerce')
+        non_numeric_ratio = coerced.isna().sum() / int(mask.sum())
+    else:
+        mask = series.notna()
+        if not mask.any():
+            return False
+        coerced = pd.to_numeric(series[mask], errors='coerce')
+        non_numeric_ratio = coerced.isna().sum() / int(mask.sum())
+
     return non_numeric_ratio < threshold
+
 
 EXCLUDE_MELT_PREFIXES = ["dma_code", "dma_name", "unnamed", "npi", "hcp"]
 
@@ -110,48 +129,6 @@ def decat_for_display(df: pd.DataFrame) -> pd.DataFrame:
 # ------------------------------------------------------------
 # ------------------- Date / Channel UIs ---------------------
 # ------------------------------------------------------------
-# def date_selection_ui(df, file_key):
-#     st.write("📅 **Date Column Selection**")
-#     saved = st.session_state.date_settings.get(file_key, {})
-#     default_date = saved.get("date_col", df.columns[0] if len(df.columns) else "")
-#     ensure_default(f"date_col_{file_key}", default_date)
-#     ensure_default(f"new_date_col_{file_key}", saved.get("new_name", ""))
-
-#     cols = st.columns([1, 2])
-#     with cols[0]:
-#         date_col = st.selectbox("Select date column", df.columns, key=f"date_col_{file_key}")
-#     with cols[1]:
-#         new_date_column = st.text_input("Rename date column (Optional)",
-#                                         key=f"new_date_col_{file_key}",
-#                                         placeholder="e.g. WeekStartDate")
-#     st.session_state.date_settings[file_key] = {"date_col": date_col, "new_name": new_date_column}
-#     return date_col, new_date_column
-
-# def date_selection_ui(df, file_key):
-#     import streamlit as st
-#     st.write("📅 **Date Column Selection**")
-#     date_columns = [col for col in df.columns if str(df[col].dtype).startswith("datetime")]
-#     saved = st.session_state.date_settings.get(file_key, {})
-
-#     if date_columns:
-#         default_date = saved.get("date_col", date_columns[0])
-#     else:
-#         default_date = saved.get("date_col", "None")
-
-#     ensure_default(f"date_col_{file_key}", default_date)
-#     ensure_default(f"new_date_col_{file_key}", saved.get("new_name", ""))
-
-#     cols = st.columns([1, 2])
-#     with cols[0]:
-#         options = date_columns if date_columns else ["None"] + list(df.columns)
-#         date_col = st.selectbox("Select date column", options, key=f"date_col_{file_key}")
-#     with cols[1]:
-#         new_date_column = st.text_input("Rename date column (Optional)",
-#                                         key=f"new_date_col_{file_key}",
-#                                         placeholder="e.g. WeekStartDate")
-
-#     st.session_state.date_settings[file_key] = {"date_col": date_col, "new_name": new_date_column}
-#     return date_col, new_date_column
 
 def date_selection_ui(df, file_key):
 
@@ -247,42 +224,6 @@ def date_selection_ui(df, file_key):
     st.session_state.date_settings[file_key] = {"date_col": date_col, "new_name": new_date_column}
 
     return date_col, new_date_column
-
-# def channel_selection_ui(df, file_key):
-#     st.write("📦 **Channel Column Selection**")
-#     saved = st.session_state.channel_settings.get(file_key, {})
-#     ensure_default(f"channel_radio_{file_key}", saved.get("mode", "Yes"))
-#     channel_available = st.radio("Is there a 'Channel' column?", ("Yes", "No"), key=f"channel_radio_{file_key}")
-#     final_channel_name = None
-#     if channel_available == "Yes":
-#         ensure_default(f"channel_col_{file_key}", saved.get("channel_col", df.columns[0] if len(df.columns) else ""))
-#         ensure_default(f"new_channel_col_{file_key}", saved.get("new_name", ""))
-#         cols = st.columns([1, 2])
-#         with cols[0]:
-#             channel_col = st.selectbox("Select channel column", df.columns, key=f"channel_col_{file_key}")
-#         with cols[1]:
-#             new_channel_name = st.text_input("Rename channel column (Optional)",
-#                                              key=f"new_channel_col_{file_key}",
-#                                              placeholder="e.g. SourceChannel")
-#         final_channel_name = new_channel_name if new_channel_name else channel_col
-#         st.session_state.channel_settings[file_key] = {"mode": "Yes", "channel_col": channel_col, "new_name": new_channel_name}
-#     else:
-#         ensure_default(f"custom_channel_col_{file_key}", saved.get("custom_name", ""))
-#         ensure_default(f"channel_value_{file_key}", saved.get("value", ""))
-#         cols = st.columns([1, 2])
-#         with cols[0]:
-#             custom_channel_col = st.text_input("Enter custom channel column name",
-#                                                key=f"custom_channel_col_{file_key}",
-#                                                placeholder="e.g. SourceChannel")
-#         with cols[1]:
-#             channel_value = st.text_input("Enter value for channel column",
-#                                           key=f"channel_value_{file_key}",
-#                                           placeholder="e.g. Google Ads")
-#         final_channel_name = custom_channel_col if custom_channel_col else None
-#         st.session_state.channel_settings[file_key] = {"mode": "No", "custom_name": custom_channel_col, "value": channel_value}
-#     return final_channel_name
-
-
 
 def channel_selection_ui(df, file_key):
     import streamlit as st
@@ -493,23 +434,61 @@ def apply_column_mappings(df, mappings):
                 new_df.drop(columns=[col], inplace=True)
     return new_df
 
-def detect_numeric_candidates_across_files(dfs, threshold=0.1):
-    """(Legacy) Full scan; we will prefer cached light preview below."""
+def _preclean_numeric_strings(s: pd.Series) -> pd.Series:
+    """
+    Make numeric-like strings parseable by pd.to_numeric:
+    - Trim whitespace
+    - Convert parentheses to negatives: '(123)' -> '-123'
+    - Strip common currency symbols
+    - Remove thousands separators (comma, non-breaking/thin spaces)
+    - Remove any remaining internal whitespace
+    """
+    currency_symbols_pattern = r'[\$\₹£€¥₩₽฿₪₫₴₦₺]'
+    s = s.astype(str).str.strip()
+    s = s.str.replace(r'^\((.*)\)$', r'-\1', regex=True)
+    s = s.str.replace(currency_symbols_pattern, '', regex=True)  
+    s = s.str.replace(r'[,\u00A0\u2009\u202F]', '', regex=True)    
+    s = s.str.replace(r'\s+', '', regex=True)                     
+    return s
+
+def detect_numeric_candidates_across_files(
+    dfs, threshold: float = 0.99, meta_col: str | None = None):
+    """
+    Detect columns that are 'numeric enough' (invalid ratio <= threshold) in ANY DataFrame.
+    Also converts those columns to numeric in-place in each DataFrame.
+
+    Returns:
+        sorted list of unique candidate column names.
+    """
     candidates = set()
+
     for df in dfs:
         for col in df.columns:
-            if col == META_COL:
+            if meta_col is not None and col == meta_col:
                 continue
             s = df[col]
             if pd.api.types.is_datetime64_any_dtype(s):
                 continue
-            mask = (s.astype(str).str.strip() != "") if s.dtype == 'O' else s.notna()
-            if mask.any():
+            if s.dtype == 'O':
+                s_clean = _preclean_numeric_strings(s)
+                mask = s_clean != ""
+                if not mask.any():
+                    continue
+                coerced = pd.to_numeric(s_clean[mask], errors='coerce')
+            else:
+                mask = s.notna()
+                if not mask.any():
+                    continue
                 coerced = pd.to_numeric(s[mask], errors='coerce')
-                invalid = coerced.isna().sum()
-                total = int(mask.sum())
-                if total > 0 and (invalid / total) < threshold:
-                    candidates.add(col)
+            invalid = int(coerced.isna().sum())
+            total = int(mask.sum())
+            invalid_ratio = (invalid / total) if total > 0 else 1.0
+            if total > 0 and invalid_ratio <= threshold:
+                candidates.add(col)
+                if s.dtype == 'O':
+                    df[col] = pd.to_numeric(_preclean_numeric_strings(s), errors='coerce')
+                else:
+                    df[col] = pd.to_numeric(s, errors='coerce')
     return sorted(candidates)
 
 def map_numeric_candidates_to_unified(candidates, mappings):
@@ -532,20 +511,30 @@ def build_light_preview_for_numeric(pre_list, sample_rows: int = 500):
     """
     previews = []
     for df in pre_list:
-        small = df.head(sample_rows)
+        small = df if (sample_rows is None or sample_rows <= 0) else df.head(sample_rows)
         meta = {}
         for col in small.columns:
             if col == META_COL or pd.api.types.is_datetime64_any_dtype(small[col]):
                 continue
             s = small[col]
-            mask = (s.astype(str).str.strip() != "") if s.dtype == 'O' else s.notna()
-            if mask.any():
+            if s.dtype == 'O':
+                s_clean = _preclean_numeric_strings(s)
+                mask = s_clean != ""
+                if not mask.any():
+                    continue
+                coerced = pd.to_numeric(s_clean[mask], errors='coerce')
+            else:
+                mask = s.notna()
+                if not mask.any():
+                    continue
                 coerced = pd.to_numeric(s[mask], errors='coerce')
-                invalid = int(coerced.isna().sum())
-                total = int(mask.sum())
-                meta[col] = {"invalid": invalid, "total": total}
+            invalid = int(coerced.isna().sum())
+            total   = int(mask.sum())
+            meta[col] = {"invalid": invalid, "total": total}
+
         previews.append(meta)
     return previews
+
 
 def collapse_preview_counts(previews):
     counts = {}
@@ -563,16 +552,25 @@ def counts_to_signature(counts: dict) -> tuple:
 @st.cache_data(show_spinner=False)
 def cached_numeric_candidates(counts_sig: tuple,
                               exclude_prefixes: tuple,
-                              threshold: float = 0.1) -> list:
+                              threshold: float = 0.99) -> list:
     out = []
     lc_prefixes = tuple(p.lower() for p in exclude_prefixes)
+
     def keep(col):
         c = str(col).strip().lower()
         return not (c in lc_prefixes or c.startswith(lc_prefixes))
+
     for col, tot, invalid in counts_sig:
-        if tot > 0 and (invalid / tot) < threshold and keep(col):
-            out.append(col)
+        if not keep(col):
+            continue
+        if tot > 0:
+            numeric_count = tot - invalid
+            if ((invalid / tot) < threshold) or (numeric_count >= 1):
+                out.append(col)
+
     return sorted(out)
+
+
 
 # ------------------------------------------------------------
 # ----------------------- Per-file transforms ----------------
@@ -750,6 +748,17 @@ def render_download_and_breakdown_melt(final_df: pd.DataFrame,
     display_df = decat_for_display(final_df).fillna("")
     st.dataframe(to_display_df(display_df).head(10))
 
+    ################ New added code for go on prev page from final page ######
+    if st.session_state.get("page") == "combine" and st.session_state.get("multi_mode", False):
+        total_files = len(st.session_state.get("raw_data", {}))
+        if total_files > 0:
+            if st.button("⬅️ Save & Previous", key=f"final_prev_only__{state_key}", use_container_width=True):
+                st.session_state.file_index = total_files - 1
+                st.session_state.page = "process"
+                st.rerun()
+
+    ################ New added code for go on prev page from final page ######
+
     ensure_default(f"breakdown_toggle_{state_key}", "No")
     breakdown_choice = st.radio("Breakdown final output by a specific column?",
                                 ("No", "Yes"),
@@ -857,6 +866,15 @@ if st.session_state.page == "process":
     uploaded_files = st.file_uploader("**Upload CSV or Excel files**",
                                       type=["csv", "xlsx"],
                                       accept_multiple_files=True)
+    
+    ################ New added code for go on prev page from final page ######
+    if (not uploaded_files) and st.session_state.raw_data:
+        class _PseudoFile:
+            def __init__(self, name): self.name = name
+        uploaded_files = [_PseudoFile(n) for n in st.session_state.raw_data.keys()]
+    ################ New added code for go on prev page from final page ######
+
+
     if uploaded_files:
         total_files = len(uploaded_files)
         st.session_state.multi_mode = total_files > 1
@@ -903,17 +921,57 @@ if st.session_state.page == "process":
             else:
                 active_date_col = None
 
+            # numeric_candidates = []
+            # df_for_detect = base_df.copy()
+            # for col in df_for_detect.columns:
+            #     if col == META_COL:
+            #         continue
+            #     if active_date_col and col == active_date_col:
+            #         continue
+            #     if is_effectively_numeric(df_for_detect[col]):
+            #         df_for_detect[col] = pd.to_numeric(df_for_detect[col], errors='coerce')
+            #         numeric_candidates.append(col)
+            # numeric_candidates = filter_melt_candidates(numeric_candidates)
+
+            
             numeric_candidates = []
             df_for_detect = base_df.copy()
+
             for col in df_for_detect.columns:
+                # Skip metadata and the active date column
                 if col == META_COL:
                     continue
                 if active_date_col and col == active_date_col:
                     continue
-                if is_effectively_numeric(df_for_detect[col]):
-                    df_for_detect[col] = pd.to_numeric(df_for_detect[col], errors='coerce')
+
+                s = df_for_detect[col]
+
+                # Count how many values are parseable as numeric (full column, no sampling)
+                if s.dtype == 'O':
+                    s_clean = _preclean_numeric_strings(s)
+                    mask = s_clean != ""
+                    if mask.any():
+                        coerced = pd.to_numeric(s_clean[mask], errors='coerce')
+                        numeric_count = int(coerced.notna().sum())
+                    else:
+                        numeric_count = 0
+                else:
+                    mask = s.notna()
+                    if mask.any():
+                        coerced = pd.to_numeric(s[mask], errors='coerce')
+                        numeric_count = int(coerced.notna().sum())
+                    else:
+                        numeric_count = 0
+
+                # Accept if either:
+                # 1) the column is "effectively numeric" (your function), OR
+                # 2) it has at least one numeric value after cleaning (fallback)
+                if is_effectively_numeric(s) or (numeric_count >= 1):
                     numeric_candidates.append(col)
+
+            # Keep your existing prefix exclusions
             numeric_candidates = filter_melt_candidates(numeric_candidates)
+
 
             metric_cols_key = f"metric_cols_single__{file_key}"
             ensure_default(metric_cols_key, [])
@@ -948,10 +1006,15 @@ if st.session_state.page == "process":
 
             if st.button("Apply Melt", key=f"apply_melt_single__{file_key}"):
                 df = build_processed_df(base_df, file_key)
-                melt_base = df.copy()
+                melt_base = df.copy() 
                 for mc in metric_columns:
                     if mc in melt_base.columns:
-                        melt_base[mc] = pd.to_numeric(melt_base[mc], errors='coerce')
+                        s = melt_base[mc]
+                        if s.dtype == 'O':
+                            melt_base[mc] = pd.to_numeric(_preclean_numeric_strings(s), errors='coerce')
+                        else:
+                            melt_base[mc] = pd.to_numeric(s, errors='coerce')
+
 
                 melted_df = melt_base.melt(
                     id_vars=[c for c in melt_base.columns if c not in metric_columns],
@@ -1117,10 +1180,10 @@ elif st.session_state.page == "combine":
 
         # ---------- Melt on Combined/Harmonized Data ----------
         st.write("🧪 **Melt Columns (across all files)**")
-        light_preview = build_light_preview_for_numeric(pre_list, sample_rows=500)
+        light_preview = build_light_preview_for_numeric(pre_list, sample_rows=None)
         counts = collapse_preview_counts(light_preview)
         counts_sig = counts_to_signature(counts)
-        cands = cached_numeric_candidates(counts_sig, tuple(EXCLUDE_MELT_PREFIXES), threshold=0.1)
+        cands = cached_numeric_candidates(counts_sig, tuple(EXCLUDE_MELT_PREFIXES), threshold=0.99)
         cands = map_numeric_candidates_to_unified(cands, st.session_state.column_mappings_multi)
         cands = [c for c in cands if c in harmonized_df.columns]
         st.session_state.cached_numeric_candidates_multi = cands
@@ -1143,9 +1206,14 @@ elif st.session_state.page == "combine":
                 )
 
             if st.button("Apply Melt", key="apply_melt_multi"):
-                melt_base = harmonized_df.copy()
+                melt_base = harmonized_df.copy()  
                 for mc in metric_columns:
-                    melt_base[mc] = pd.to_numeric(melt_base[mc], errors='coerce')
+                    s = melt_base[mc]
+                    if s.dtype == 'O':
+                        melt_base[mc] = pd.to_numeric(_preclean_numeric_strings(s), errors='coerce')
+                    else:
+                        melt_base[mc] = pd.to_numeric(s, errors='coerce')
+
                 melted_df = melt_base.melt(
                     id_vars=[c for c in melt_base.columns if c not in metric_columns],
                     value_vars=metric_columns,
@@ -1192,5 +1260,6 @@ elif st.session_state.page == "combine":
                     default_csv_name="Processed_Combined_Data.csv",
                     state_key="multi_melt_combined"
                 )
+
         else:
             st.info("Select metric columns and click **Apply Melt** to proceed.")

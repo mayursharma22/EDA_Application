@@ -87,32 +87,122 @@ def run(params: dict):
     
     _col_map = {c.strip().lower(): c for c in df.columns}
 
+    # incomplete_quarters_all = []
+    # def check_incomplete_quarter(pivot_week, pivot_q, date_var, date_grain, sheet_name, ws, q_startcol):
+    #     if date_grain != "weekly" or pivot_week.empty:
+    #         return
+
+    #     max_date = pd.to_datetime(pivot_week[date_var].max())
+    #     weekday = max_date.strftime("%A")
+    #     quarter_end_date = (max_date + QuarterEnd(0)).normalize()
+    #     while quarter_end_date.strftime("%A") != weekday:
+    #         quarter_end_date -= pd.Timedelta(days=1)
+
+    #     if max_date != quarter_end_date:
+    #         quarter_str = max_date.to_period("Q").strftime("%Y Q%q")
+    #         # Mark incomplete quarter in pivot_q
+    #         pivot_q["Quarter"] = pivot_q["Quarter"].apply(lambda q: q + "*" if q == quarter_str else q)
+    #         # Add footnote in Excel
+    #         ws.write(len(pivot_q) + 1, q_startcol, "* Incomplete Quarter")
+    #         # Save details for summary sheet
+    #         incomplete_quarters_all.append({
+    #             "Sheet Name": sheet_name,
+    #             "Quarter": quarter_str,
+    #             "Max Date": max_date.strftime("%Y-%m-%d"),
+    #             "Weekday": weekday,
+    #             "Quarter End": quarter_end_date.strftime("%Y-%m-%d"),
+    #             "Status": "Incomplete"
+    #         })
+
     incomplete_quarters_all = []
-    def check_incomplete_quarter(pivot_week, pivot_q, date_var, date_grain, sheet_name, ws, q_startcol):
-        if date_grain != "weekly" or pivot_week.empty:
+    
+    def check_incomplete_quarter(
+        pivot_week: pd.DataFrame,
+        pivot_q: pd.DataFrame,
+        date_var: str,
+        date_grain: str,
+        sheet_name,
+        ws,
+        q_startcol: int
+    ) -> None:
+        if date_grain != "weekly" or pivot_week.empty or pivot_q.empty:
             return
 
-        max_date = pd.to_datetime(pivot_week[date_var].max())
-        weekday = max_date.strftime("%A")
-        quarter_end_date = (max_date + QuarterEnd(0)).normalize()
-        while quarter_end_date.strftime("%A") != weekday:
-            quarter_end_date -= pd.Timedelta(days=1)
+        week_dates = pd.to_datetime(pivot_week[date_var], errors="coerce")
+        valid_weekdays = week_dates.dt.weekday.dropna()
+        if valid_weekdays.empty:
+            return
+        anchor_num = int(valid_weekdays.mode().iloc[0])
 
-        if max_date != quarter_end_date:
-            quarter_str = max_date.to_period("Q").strftime("%Y Q%q")
-            # Mark incomplete quarter in pivot_q
-            pivot_q["Quarter"] = pivot_q["Quarter"].apply(lambda q: q + "*" if q == quarter_str else q)
-            # Add footnote in Excel
+        def aligned_start_of_quarter(q_start_cal: pd.Timestamp) -> pd.Timestamp:
+            days_ahead = (anchor_num - int(q_start_cal.weekday())) % 7
+            return (q_start_cal + pd.Timedelta(days=int(days_ahead))).normalize()
+
+        def aligned_end_of_quarter(q_end_cal: pd.Timestamp) -> pd.Timestamp:
+            days_back = (int(q_end_cal.weekday()) - anchor_num) % 7
+            return (q_end_cal - pd.Timedelta(days=int(days_back))).normalize()
+
+        quarters = week_dates.dt.to_period("Q").astype(str).str.replace("Q", " Q")
+        if "Quarter" not in pivot_q.columns:
+            return
+
+        updated_quarter_col = pivot_q["Quarter"].copy()
+        incomplete_found = False
+
+        for q_label in sorted(updated_quarter_col.dropna().unique()):
+            mask_q = quarters == q_label
+            if not mask_q.any():
+                continue
+            observed = week_dates[mask_q].dropna()
+            if observed.empty:
+                continue
+
+            min_obs = observed.min().normalize()
+            max_obs = observed.max().normalize()
+
+            try:
+                period_q = pd.Period(q_label.replace(" ", ""), freq="Q")
+            except Exception:
+                continue
+
+            q_start_cal = period_q.start_time.normalize()
+            q_end_cal   = period_q.end_time.normalize()
+
+            exp_start = aligned_start_of_quarter(q_start_cal)
+            exp_end   = aligned_end_of_quarter(q_end_cal)
+
+            if (min_obs != exp_start) or (max_obs != exp_end):
+                updated_quarter_col = updated_quarter_col.apply(
+                    lambda x: x + "*" if x == q_label and not str(x).endswith("*") else x
+                )
+                try:
+                    incomplete_quarters_all.append({
+                        "Sheet Name": sheet_name,
+                        "Quarter": q_label,
+                        "Aligned Start": exp_start.strftime("%Y-%m-%d"),
+                        "Observed Min": min_obs.strftime("%Y-%m-%d"),
+                        "Aligned End": exp_end.strftime("%Y-%m-%d"),
+                        "Observed Max": max_obs.strftime("%Y-%m-%d"),
+                        "Status": "Incomplete",
+                    })
+                except NameError:
+                    pass
+                incomplete_found = True
+
+        pivot_q["Quarter"] = updated_quarter_col
+
+        try:
+            q_col_idx = list(pivot_q.columns).index("Quarter")
+        except ValueError:
+            q_col_idx = 0
+
+        for r, val in enumerate(updated_quarter_col.tolist(), start=1):
+            ws.write(r, q_startcol + q_col_idx, val)
+
+        if incomplete_found:
             ws.write(len(pivot_q) + 1, q_startcol, "* Incomplete Quarter")
-            # Save details for summary sheet
-            incomplete_quarters_all.append({
-                "Sheet Name": sheet_name,
-                "Quarter": quarter_str,
-                "Max Date": max_date.strftime("%Y-%m-%d"),
-                "Weekday": weekday,
-                "Quarter End": quarter_end_date.strftime("%Y-%m-%d"),
-                "Status": "Incomplete"
-            })
+
+
 
     def _resolve(col_name: str) -> str:
         """Resolve a requested column name to the actual df column name (case/space insensitive)."""
@@ -153,6 +243,22 @@ def run(params: dict):
     cost_var   = cost_var_res
 
     df[date_var] = pd.to_datetime(df[date_var], errors="coerce")
+
+
+    ################### New Piece for chnage week start day in UI ####################
+
+    week_start_day = params.get("week_start_day", "").strip().capitalize()
+    if date_grain == "weekly" and week_start_day:
+        valid_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        if week_start_day in valid_days:
+            target_idx = valid_days.index(week_start_day)
+            mask = df[date_var].notna()
+            delta = (df.loc[mask, date_var].dt.weekday - target_idx) % 7
+            df.loc[mask, date_var] = df.loc[mask, date_var] - pd.to_timedelta(delta, unit="D")
+
+    ################### New Piece for chnage week start day in UI ####################
+
+
 
     if QC_variables:
         QC_dict = {f"QC{i}": sorted(df[v].dropna().unique()) for i, v in enumerate(QC_variables)}
@@ -271,9 +377,21 @@ def run(params: dict):
                 if date_grain == "daily":
                     idx = pd.date_range(dmin.normalize(), dmax.normalize(), freq="D")
 
+                # elif date_grain == "weekly":
+                #     anchor = dmin.strftime("%a").upper()[:3]  
+                #     freq = f"W-{anchor}"                    
+                #     idx = pd.date_range(dmin, dmax, freq=freq)
+
                 elif date_grain == "weekly":
-                    anchor = dmin.strftime("%a").upper()[:3]  
-                    freq = f"W-{anchor}"                    
+                    _weekday_to_anchor = {
+                        "Monday": "MON", "Tuesday": "TUE", "Wednesday": "WED",
+                        "Thursday": "THU", "Friday": "FRI", "Saturday": "SAT", "Sunday": "SUN"
+                    }
+                    if week_start_day:
+                        anchor = _weekday_to_anchor[week_start_day] 
+                    else:
+                        anchor = dmin.strftime("%a").upper()[:3]
+                    freq = f"W-{anchor}"
                     idx = pd.date_range(dmin, dmax, freq=freq)
 
                 elif date_grain == "monthly":

@@ -108,6 +108,60 @@ def run_excel_eda():
     grain_map = {"Weekly": "weekly", "Monthly": "monthly", "Daily": "daily"}
     date_grain = grain_map[grain_label]
 
+    ################# Newly Added Piece to detect Week Start Day ###################
+
+    if grain_label == "Weekly":
+        _dates = pd.to_datetime(df[date_var], errors="coerce").dropna()
+        weekday_map = {
+            0: "Monday", 1: "Tuesday", 2: "Wednesday",
+            3: "Thursday", 4: "Friday", 5: "Saturday", 6: "Sunday",
+        }
+        reverse_weekday_map = {v: k for k, v in weekday_map.items()}
+
+        selected_week_start = None
+
+        if _dates.empty:
+            st.caption("Could not detect a consistent week start day.")
+            selected_week_start = st.selectbox(
+                "Choose Week Start Day (will align/floor dates to this day)",
+                options=list(reverse_weekday_map.keys()),
+                index=0,
+                key="eda_weekstart_select"
+            )
+            st.caption(f"The selected week start day is: **{selected_week_start}**")
+        else:
+            weekdays = _dates.dt.dayofweek.unique()
+            if len(weekdays) == 1:
+                detected = weekday_map[int(weekdays[0])]
+                st.caption(f"In the dataset, Week Start Day is: **{detected}**")
+
+                change_choice = st.radio(
+                    "Do you want to change the Week Start Day?",
+                    ["No", "Yes"],
+                    index=0,
+                    horizontal=True,
+                    key="eda_change_weekstart"
+                )
+                if change_choice == "Yes":
+                    selected_week_start = st.selectbox(
+                        "Choose new Week Start Day",
+                        options=list(reverse_weekday_map.keys()),
+                        index=int(weekdays[0]),
+                        key="eda_weekstart_select"
+                    )
+                    st.caption(f"The new week start day is: **{selected_week_start}**")
+            else:
+                st.caption("Could not detect a consistent week start day.")
+                selected_week_start = st.selectbox(
+                    "Choose Week Start Day (will align/floor dates to this day)",
+                    options=list(reverse_weekday_map.keys()),
+                    index=0,
+                    key="eda_weekstart_select"
+                )
+                st.caption(f"The selected week start day is: **{selected_week_start}**")
+
+     ################# Newly Added Piece to detect Week Start Day ###################
+
     default_metric_idx = list(df.columns).index("Metrics") if "Metrics" in df.columns else 0
     default_value_idx  = list(df.columns).index("Values")  if "Values"  in df.columns else 0
 
@@ -163,6 +217,10 @@ def run_excel_eda():
         "value_var": value_var,
         "cost_var": cost_var,
     }
+
+    if selected_week_start:
+        params["week_start_day"] = selected_week_start
+
        
     # ----- Color Customization -----
     st.markdown("#### Customize Colors")
@@ -257,6 +315,25 @@ def run_excel_eda():
             file_name=up.name,
             params=params
         )
+
+    ####### This is Temporary, since file downlaod is blocked #############
+    st.markdown("##### Final Preview:")
+    bio = io.BytesIO(excel_bytes)
+
+    try:
+        xls = pd.ExcelFile(bio, engine="openpyxl")
+        sheet_names = xls.sheet_names
+        sheet_to_show = st.selectbox("Select sheet to preview", sheet_names, index=0)
+        df_preview = pd.read_excel(xls, sheet_name=sheet_to_show, engine="openpyxl")
+        st.dataframe(df_preview)
+        st.caption(
+            f"Showing all {len(df_preview):,} rows of '{sheet_to_show}' "
+            f"(columns: {df_preview.shape[1]})"
+        )
+
+    except Exception as e:
+        st.error(f"Could not open the generated workbook for preview: {e}")
+    ####### This is Temporary, since file downlaod is blocked #############
 
     st.download_button(
         label="🚀 Generate & Download EDA Workbook",
