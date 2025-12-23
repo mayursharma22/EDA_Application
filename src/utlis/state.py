@@ -1,7 +1,9 @@
 import streamlit as st
 
+
 class PrefixedState:
     """Redirects all gets/sets to st.session_state under a given prefix."""
+
     def __init__(self, prefix: str):
         object.__setattr__(self, "_prefix", prefix)
         object.__setattr__(self, "_ss", st.session_state)
@@ -34,7 +36,6 @@ class PrefixedState:
         return self._ss.pop(self._k(name), default)
 
     def clear_namespace(self):
-        to_del = [k for k in list(self._ss.keys())
-                  if k.startswith(f"{self._prefix}:")]
+        to_del = [k for k in list(self._ss.keys()) if k.startswith(f"{self._prefix}:")]
         for k in to_del:
             del self._ss[k]
