@@ -5,15 +5,10 @@
 # Description: Automated EDA generation for performance data with weekly/quarterly pivots and summary.
 # Date: 2025-10-28
 # --------------------------------------------------------------
-import numpy as np
 import pandas as pd
 import string
-import time
-import os
-import re
 import itertools
 from pathlib import Path
-from pandas.tseries.offsets import QuarterEnd
 
 # ------------------------------------------------------------------
 # Excel helper constants
@@ -594,7 +589,6 @@ def run(params: dict):
                     )
                     w = max(vals.astype(str).map(len).max(), len(col)) + 2
                     ws.set_column(ci, ci, w)
-                    fmt = number_fmt
                     if date_var == col:
                         the_fmt = date_fmt
                         is_date_col = True
@@ -628,7 +622,6 @@ def run(params: dict):
             ws.set_zoom(100)
 
             num_rows = len(pivot_week)
-            total_week_cols = len(pivot_week.columns) - 1
             for m_idx, metric in enumerate(Metrics):
                 mcols = [
                     c
@@ -842,7 +835,6 @@ def run(params: dict):
                     chart.set_legend({"position": "bottom"})
                     chart.set_size({"width": 850, "height": 450})
 
-                    chart_spacing_cols = 20
                     base_row = len(pivot_q) + 27
                     start_col = len(pivot_week.columns) + 1
                     chart_row = base_row
