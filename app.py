@@ -1,21 +1,21 @@
+# Standard Imports
 import streamlit as st
-import runpy
 
+# Internal Imports
+from src import run_excel_eda, func_eda_data_processing
+
+# The setup
 st.set_page_config(page_title="Data Preparation & EDA", layout="wide")
 
+# The sidebars
 st.sidebar.header("Navigation")
 choice = st.sidebar.radio(
-    "**Select a tool**",
-    ["Data Preparation", 
-     "EDA Generation"
-     ],
-    index=0,
-    key="main_nav"
+    "**Select a tool**", ["Data Preparation", "EDA Generation"], index=0, key="main_nav"
 )
 
-if choice == "Data Preparation":
-    runpy.run_path("./src/eda_data_Processing.py", run_name="__main__")
-
-else:
-    from src.eda_excel_app import run_excel_eda
-    run_excel_eda()
+# The contents oh the
+match choice:
+    case "Data Preparation":
+        func_eda_data_processing()
+    case _:
+        run_excel_eda()
