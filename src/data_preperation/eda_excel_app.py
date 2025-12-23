@@ -1,10 +1,16 @@
+# Standard Library
 import os
 import io
 import tempfile
 import hashlib
+
+# Third Party imports
 import pandas as pd
 import streamlit as st
-from src.eda_excel_generation import run as eda_excel_run
+
+# Internal imports
+from .eda_excel_generation import run as eda_excel_run
+
 
 st.set_page_config(page_title="EDA Generation", layout="wide")
 
@@ -400,7 +406,3 @@ def run_excel_eda():
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="eda_generate_and_download",
     )
-
-
-if __name__ == "__main__":
-    run_excel_eda()

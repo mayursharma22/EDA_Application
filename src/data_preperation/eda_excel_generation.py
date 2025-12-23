@@ -1,14 +1,10 @@
-# --------------------------------------------------------------
-# eda_generation.py
-# Author: Saurabh Shinkar
-# Version: 1.0
-# Description: Automated EDA generation for performance data with weekly/quarterly pivots and summary.
-# Date: 2025-10-28
-# --------------------------------------------------------------
-import pandas as pd
+# Standard library imports
 import string
 import itertools
 from pathlib import Path
+
+# Third party imports
+import pandas as pd
 
 # ------------------------------------------------------------------
 # Excel helper constants
