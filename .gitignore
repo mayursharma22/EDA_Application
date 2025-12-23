@@ -11,3 +11,4 @@ test/
 *.xlsx
 *.csv
 *.parquet
+.vscode
