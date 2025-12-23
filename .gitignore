@@ -1,7 +1,14 @@
-__pycache__
+# Folders
+__pycache__/
+.vscode/
+.venv/
+.ruff_cache/
+data/
+temp/
+test/
+
+# Files
 *.xlsx
 *.csv
 *.parquet
 .vscode
-.venv
-__pycache__.zip
