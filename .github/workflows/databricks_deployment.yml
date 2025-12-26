@@ -1,0 +1,34 @@
+name: Automated Check And DBX CICD
+
+on:
+  push:
+    branches: [dev, dev-rr-workflow-setup]
+  pull-request:
+    branches: [dev, dev-rr-workflow-setup]
+  workflow-dispatch:
+
+jobs:
+  quality-check:
+    - name: Checkout Code
+      uses: actions/checkout@v5
+    
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version-file: ".python-version"
+    
+    - name: Setup UV
+      uses: astral-sh/setup-uv@v7
+      with:
+        version: "0.7.16"
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+    
+    - name: Install dependencies with UV
+      run: uv sync --frozen --dev --all-extras
+    
+    - name: Ruff Lint (Check)
+      run: uv run ruff check --output-format github app.py src/
+    
+    - name: Ruff Format (Check)
+      run: uv run ruff format --check --output-format github app.py src/
