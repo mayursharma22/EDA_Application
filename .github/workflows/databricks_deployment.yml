@@ -3,9 +3,9 @@ name: Automated Check And DBX CICD
 on:
   push:
     branches: [dev, dev-rr-workflow-setup]
-  pull-request:
+  pull_request:
     branches: [dev, dev-rr-workflow-setup]
-  workflow-dispatch:
+  workflow_dispatch:
 
 jobs:
   quality-check:
