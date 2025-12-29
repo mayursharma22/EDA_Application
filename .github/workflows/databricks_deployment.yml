@@ -1,0 +1,76 @@
+name: Automated Check And DBX CICD
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+jobs:
+  quality-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+      
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+      
+      - name: Setup UV
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.7.16"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      
+      - name: Install dependencies with UV
+        run: uv sync --locked --dev --all-extras
+      
+      - name: Ruff Lint (Check)
+        run: uv run ruff check --output-format github app.py src/
+      
+      - name: Ruff Format (Check)
+        run: uv run ruff format --check --output-format github app.py src/
+
+  sync-to-workspace:
+    needs: quality-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+      
+      - name: Setup Data Bricks CLI
+        uses: databricks/setup-cli@main
+      
+      - name: DataBricks Workspace Update
+        env:
+          DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
+          DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
+          PROJECT_DIR: ${{secrets.PROJECT_DIR}}
+
+        run: databricks repos update "$PROJECT_DIR" --branch dev
+
+  deploy-app-dbx:
+    needs: sync-to-workspace
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+      
+      - name: Setup Data Bricks CLI
+        uses: databricks/setup-cli@main
+      
+      - name: DataBricks Workspace Update
+        env:
+          DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
+          DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
+          PROJECT_DIR: ${{secrets.PROJECT_DIR}}
+          APP_NAME: ${{secrets.APP_NAME}}
+
+        run: databricks apps deploy "$APP_NAME" --source-code-path "$PROJECT_DIR"
