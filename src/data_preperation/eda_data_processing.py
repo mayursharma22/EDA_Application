@@ -20,7 +20,7 @@ from pandas.api.types import (
 # ------------------------------------------------------------
 
 
-def func_eda_data_processing():
+def data_preperation():
     # Rename entries are scoped: base(df) vs melted
     if "rename_entries_df" not in st.session_state:
         st.session_state.rename_entries_df = {}  # {file_key: [ {"column","new_name"} ]}

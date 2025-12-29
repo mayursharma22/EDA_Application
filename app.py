@@ -2,7 +2,7 @@
 import streamlit as st
 
 # Internal Imports
-from src import run_excel_eda, func_eda_data_processing
+from src import data_preperation, eda_generation
 
 # The setup
 st.set_page_config(page_title="Data Preparation & EDA", layout="wide")
@@ -16,6 +16,6 @@ choice = st.sidebar.radio(
 # The contents oh the
 match choice:
     case "Data Preparation":
-        func_eda_data_processing()
+        data_preperation()
     case _:
-        run_excel_eda()
+        eda_generation()
