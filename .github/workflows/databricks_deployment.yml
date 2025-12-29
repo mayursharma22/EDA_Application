@@ -2,9 +2,9 @@ name: Automated Check And DBX CICD
 
 on:
   push:
-    branches: [dev, dev-rr-workflow-setup]
+    branches: [main, dev, dev-rr-workflow-setup]
   pull_request:
-    branches: [dev, dev-rr-workflow-setup]
+    branches: [main, dev]
   workflow_dispatch:
 
 jobs:
@@ -28,10 +28,29 @@ jobs:
           cache-dependency-glob: "uv.lock"
       
       - name: Install dependencies with UV
-        run: uv sync --frozen --dev --all-extras
+        run: uv sync --locked --dev --all-extras
       
       - name: Ruff Lint (Check)
         run: uv run ruff check --output-format github app.py src/
       
       - name: Ruff Format (Check)
         run: uv run ruff format --check --output-format github app.py src/
+
+  sync-to-workspace:
+    needs: quality-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+      
+      - name: Setup Data Bricks CLI
+        uses: databricks/setup-cli@main
+      
+      - name: DataBricks Workspace Update
+        env:
+          DATABRICKS_HOST=${{secrets.DATABRICKS_HOST}}
+          DATABRICKS_TOKEN=${{secrets.DATABRICKS_TOKEN}}
+          PROJECT_DIR=${{secrets.PROJECT_DIR}}
+
+        run: databricks repos update "$PROJECT_DIR" --branch dev-rr-workflow-setup
