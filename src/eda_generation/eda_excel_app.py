@@ -94,7 +94,7 @@ def build_eda_excel_bytes(file_bytes: bytes, file_name: str, params: dict) -> by
 
 
 # ---------- main ----------
-def run_excel_eda():
+def eda_generation():
     st.title("📈 EDA Generation")
     st.caption(
         "Upload a CSV and configure parameters. Generates a formatted Excel workbook."

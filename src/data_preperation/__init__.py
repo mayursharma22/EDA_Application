@@ -1,4 +1,4 @@
-from .eda_excel_app import run_excel_eda
+from .eda_data_processing import data_preperation
 
 
-__all__ = ["run_excel_eda"]
+__all__ = ["data_preperation"]
