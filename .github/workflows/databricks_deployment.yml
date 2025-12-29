@@ -2,7 +2,7 @@ name: Automated Check And DBX CICD
 
 on:
   push:
-    branches: [main, dev, dev-rr-workflow-setup]
+    branches: [main, dev]
   pull_request:
     branches: [main, dev]
   workflow_dispatch:
@@ -53,7 +53,7 @@ jobs:
           DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
           PROJECT_DIR: ${{secrets.PROJECT_DIR}}
 
-        run: databricks repos update "$PROJECT_DIR" --branch dev-rr-workflow-setup
+        run: databricks repos update "$PROJECT_DIR" --branch dev
 
   deploy-app-dbx:
     needs: sync-to-workspace
