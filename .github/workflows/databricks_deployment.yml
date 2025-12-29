@@ -49,8 +49,8 @@ jobs:
       
       - name: DataBricks Workspace Update
         env:
-          DATABRICKS_HOST=${{secrets.DATABRICKS_HOST}}
-          DATABRICKS_TOKEN=${{secrets.DATABRICKS_TOKEN}}
-          PROJECT_DIR=${{secrets.PROJECT_DIR}}
+          DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
+          DATABRICKS_TOKENL: ${{secrets.DATABRICKS_TOKEN}}
+          PROJECT_DIR: ${{secrets.PROJECT_DIR}}
 
         run: databricks repos update "$PROJECT_DIR" --branch dev-rr-workflow-setup
