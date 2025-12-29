@@ -54,3 +54,23 @@ jobs:
           PROJECT_DIR: ${{secrets.PROJECT_DIR}}
 
         run: databricks repos update "$PROJECT_DIR" --branch dev-rr-workflow-setup
+
+  deploy-app-dbx:
+    needs: sync-to-workspace
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+      
+      - name: Setup Data Bricks CLI
+        uses: databricks/setup-cli@main
+      
+      - name: DataBricks Workspace Update
+        env:
+          DATABRICKS_HOST: ${{secrets.DATABRICKS_HOST}}
+          DATABRICKS_TOKEN: ${{secrets.DATABRICKS_TOKEN}}
+          PROJECT_DIR: ${{secrets.PROJECT_DIR}}
+          APP_NAME: ${{secrets.APP_NAME}}
+
+        run: databricks apps deploy "$APP_NAME" --source-code-path "$PROJECT_DIR"
