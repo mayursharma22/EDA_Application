@@ -89,9 +89,11 @@ def run(params: dict):
     user_palette = params.get("graph_colors", [])
 
     def _is_hex_color(s: str) -> bool:
-        if not isinstance(s, str): return False
+        if not isinstance(s, str):
+            return False
         s = s.strip()
-        if not (s.startswith("#") and len(s) == 7): return False
+        if not (s.startswith("#") and len(s) == 7):
+            return False
         try:
             int(s[1:], 16)
             return True
@@ -120,9 +122,12 @@ def run(params: dict):
         # 3) Return ALL colors (no upper cap)
         return dedup
 
-    graph_color_palette = _build_effective_palette(user_palette, default_palette, min_n=18)
-    header_cell_color_palette = (params.get("tab_color", "") or "").strip() or default_header_cell_color_palette
-
+    graph_color_palette = _build_effective_palette(
+        user_palette, default_palette, min_n=18
+    )
+    header_cell_color_palette = (
+        params.get("tab_color", "") or ""
+    ).strip() or default_header_cell_color_palette
 
     ################## Code for Color Customization Logic #############
 
@@ -667,7 +672,9 @@ def run(params: dict):
                                 "categories": f"='{short_sheet}'!$A$2:$A${num_rows + 1}",
                                 "values": f"='{short_sheet}'!${df_columns[loc]}$2:${df_columns[loc]}${num_rows + 1}",
                                 "line": {
-                                    "color": graph_color_palette[k % len(graph_color_palette)],
+                                    "color": graph_color_palette[
+                                        k % len(graph_color_palette)
+                                    ],
                                     "width": 2,
                                 },
                             }
@@ -710,10 +717,14 @@ def run(params: dict):
                                 "categories": f"='{short_sheet}'!$A$2:$A${num_rows + 1}",
                                 "values": f"='{short_sheet}'!${df_columns[loc]}$2:${df_columns[loc]}${num_rows + 1}",
                                 "fill": {
-                                    "color": graph_color_palette[k % len(graph_color_palette)]
+                                    "color": graph_color_palette[
+                                        k % len(graph_color_palette)
+                                    ]
                                 },
                                 "line": {
-                                    "color": graph_color_palette[k % len(graph_color_palette)],
+                                    "color": graph_color_palette[
+                                        k % len(graph_color_palette)
+                                    ],
                                     "width": 2,
                                 },
                                 "border": {"none": True},
