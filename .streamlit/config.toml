@@ -61,7 +61,7 @@ messageFormat = "%(asctime)s %(message)s"
 # error details.
 #
 # Default: "full"
-showErrorDetails = "none"
+showErrorDetails = "full"
 
 # Change the visibility of items in the toolbar, options menu,
 # and settings dialog (top right of the app).
@@ -246,7 +246,7 @@ port = 8000
 # Max size, in megabytes, for files uploaded with the file_uploader.
 #
 # Default: 200
-maxUploadSize = 500
+maxUploadSize = 2048
 
 # Max size, in megabytes, of messages that can be sent via the WebSocket
 # connection.
