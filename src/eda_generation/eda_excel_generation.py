@@ -9,7 +9,7 @@ import pandas as pd
 # ------------------------------------------------------------------
 # Excel helper constants
 # ------------------------------------------------------------------
-Color_Palette = [
+default_color_palette = [
     "#12295D",
     "#00CACF",
     "#5B19C4",
@@ -30,14 +30,7 @@ Color_Palette = [
     "#F23A1D",
 ]
 
-# Color_Palette = [
-#     '#6DBB4F', '#9997C9', '#84BAE5', '#16FFA7', '#FFE67A',
-#     '#AEAEBC', '#A2F9FB', '#00CACF', '#E5E5E9', '#FFF3CD',
-#     '#41547D', '#FFAA00', '#2B49A6', '#FFDC69', '#06757E',
-#     '#996DDF', '#FF644C', '#F23A1D', '#5B19C4', '#12295D'
-# ]
-
-Tab_Color_Palette = "#12295D"
+default_header_cell_color_palette = "#12295D"
 
 df_columns = list(string.ascii_uppercase) + [
     f + s for f in string.ascii_uppercase for s in string.ascii_uppercase
@@ -90,6 +83,54 @@ def run(params: dict):
     value_var = params.get("value_var", "value").strip()
     cost_var = params.get("cost_var", "Cost").strip()
 
+    ################## Code for Color Customization Logic #############
+
+    default_palette = default_color_palette
+    user_palette = params.get("graph_colors", [])
+
+    def _is_hex_color(s: str) -> bool:
+        if not isinstance(s, str):
+            return False
+        s = s.strip()
+        if not (s.startswith("#") and len(s) == 7):
+            return False
+        try:
+            int(s[1:], 16)
+            return True
+        except ValueError:
+            return False
+
+    def _build_effective_palette(user, default, min_n=18):
+        # 1) Take ALL valid user colors (dedupe, preserve order)
+        cleaned = [c.strip().upper() for c in (user or []) if _is_hex_color(c)]
+        seen, dedup = set(), []
+        for c in cleaned:
+            if c not in seen:
+                seen.add(c)
+                dedup.append(c)
+
+        # 2) If fewer than min_n, pad from defaults until we reach min_n
+        if len(dedup) < min_n:
+            for c in default:
+                cu = c.strip().upper()
+                if cu not in seen:
+                    seen.add(cu)
+                    dedup.append(cu)
+                    if len(dedup) >= min_n:
+                        break
+
+        # 3) Return ALL colors (no upper cap)
+        return dedup
+
+    graph_color_palette = _build_effective_palette(
+        user_palette, default_palette, min_n=18
+    )
+    header_cell_color_palette = (
+        params.get("tab_color", "") or ""
+    ).strip() or default_header_cell_color_palette
+
+    ################## Code for Color Customization Logic #############
+
     priority_map = {
         "impressions": 1,
         "sent": 2,
@@ -104,33 +145,6 @@ def run(params: dict):
     }
 
     _col_map = {c.strip().lower(): c for c in df.columns}
-
-    # incomplete_quarters_all = []
-    # def check_incomplete_quarter(pivot_week, pivot_q, date_var, date_grain, sheet_name, ws, q_startcol):
-    #     if date_grain != "weekly" or pivot_week.empty:
-    #         return
-
-    #     max_date = pd.to_datetime(pivot_week[date_var].max())
-    #     weekday = max_date.strftime("%A")
-    #     quarter_end_date = (max_date + QuarterEnd(0)).normalize()
-    #     while quarter_end_date.strftime("%A") != weekday:
-    #         quarter_end_date -= pd.Timedelta(days=1)
-
-    #     if max_date != quarter_end_date:
-    #         quarter_str = max_date.to_period("Q").strftime("%Y Q%q")
-    #         # Mark incomplete quarter in pivot_q
-    #         pivot_q["Quarter"] = pivot_q["Quarter"].apply(lambda q: q + "*" if q == quarter_str else q)
-    #         # Add footnote in Excel
-    #         ws.write(len(pivot_q) + 1, q_startcol, "* Incomplete Quarter")
-    #         # Save details for summary sheet
-    #         incomplete_quarters_all.append({
-    #             "Sheet Name": sheet_name,
-    #             "Quarter": quarter_str,
-    #             "Max Date": max_date.strftime("%Y-%m-%d"),
-    #             "Weekday": weekday,
-    #             "Quarter End": quarter_end_date.strftime("%Y-%m-%d"),
-    #             "Status": "Incomplete"
-    #         })
 
     incomplete_quarters_all = []
 
@@ -266,7 +280,7 @@ def run(params: dict):
 
     df[date_var] = pd.to_datetime(df[date_var], errors="coerce")
 
-    ################### New Piece for chnage week start day in UI ####################
+    ################### Code for change week start day in UI ####################
 
     week_start_day = params.get("week_start_day", "").strip().capitalize()
     if date_grain == "weekly" and week_start_day:
@@ -287,7 +301,7 @@ def run(params: dict):
                 delta, unit="D"
             )
 
-    ################### New Piece for chnage week start day in UI ####################
+    ################### Code for change week start day in UI ####################
 
     if QC_variables:
         QC_dict = {
@@ -309,7 +323,6 @@ def run(params: dict):
         workbook = writer.book
         workbook.nan_inf_to_errors = True
 
-        # number_fmt   = workbook.add_format({'num_format': '#,##0', 'border': 1})
         number_fmt = workbook.add_format(
             {"num_format": '_(* #,##0_);_(* (#,##0);_(* "-"??_);_(@_)', "border": 1}
         )
@@ -319,7 +332,7 @@ def run(params: dict):
         header_fmt = workbook.add_format(
             {
                 "bold": True,
-                "bg_color": Tab_Color_Palette,
+                "bg_color": header_cell_color_palette,
                 "font_color": "white",
                 "align": "center",
                 "valign": "vcenter",
@@ -327,7 +340,6 @@ def run(params: dict):
                 "border": 1,
             }
         )
-        # date_fmt     = workbook.add_format({'num_format': 'yyyy-mm-dd', 'border': 1})
         date_fmt = workbook.add_format({"num_format": "m/d/yyyy", "border": 1})
         border_fmt = workbook.add_format({"border": 1})
 
@@ -436,11 +448,6 @@ def run(params: dict):
 
                 if date_grain == "daily":
                     idx = pd.date_range(dmin.normalize(), dmax.normalize(), freq="D")
-
-                # elif date_grain == "weekly":
-                #     anchor = dmin.strftime("%a").upper()[:3]
-                #     freq = f"W-{anchor}"
-                #     idx = pd.date_range(dmin, dmax, freq=freq)
 
                 elif date_grain == "weekly":
                     _weekday_to_anchor = {
@@ -665,7 +672,9 @@ def run(params: dict):
                                 "categories": f"='{short_sheet}'!$A$2:$A${num_rows + 1}",
                                 "values": f"='{short_sheet}'!${df_columns[loc]}$2:${df_columns[loc]}${num_rows + 1}",
                                 "line": {
-                                    "color": Color_Palette[k % len(Color_Palette)],
+                                    "color": graph_color_palette[
+                                        k % len(graph_color_palette)
+                                    ],
                                     "width": 2,
                                 },
                             }
@@ -708,10 +717,14 @@ def run(params: dict):
                                 "categories": f"='{short_sheet}'!$A$2:$A${num_rows + 1}",
                                 "values": f"='{short_sheet}'!${df_columns[loc]}$2:${df_columns[loc]}${num_rows + 1}",
                                 "fill": {
-                                    "color": Color_Palette[k % len(Color_Palette)]
+                                    "color": graph_color_palette[
+                                        k % len(graph_color_palette)
+                                    ]
                                 },
                                 "line": {
-                                    "color": Color_Palette[k % len(Color_Palette)],
+                                    "color": graph_color_palette[
+                                        k % len(graph_color_palette)
+                                    ],
                                     "width": 2,
                                 },
                                 "border": {"none": True},
@@ -724,15 +737,6 @@ def run(params: dict):
                     chart.set_legend({"position": "bottom"})
 
                 chart.set_size({"width": 850, "height": 450})
-
-                # chart_row = len(pivot_q) + 3
-                # chart_spacing_cols = 15
-                # if len(Metrics) == 1:
-                #     chart_col = 25
-                # else:
-                #     chart_col = q_startcol + m_idx * chart_spacing_cols
-                # ws.insert_chart(chart_row, chart_col, chart)
-
                 base_row = len(pivot_q) + 3
                 cols_per_chart = 25
 
@@ -742,7 +746,7 @@ def run(params: dict):
                     ws.insert_chart(chart_row, chart_col, chart)
 
                 ############### Dual axis chart portion###############
-            if cost_var and cost_var.strip():  # Only proceed if cost_var is provided
+            if cost_var and cost_var.strip():
                 total_cols = [
                     c for c in pivot_week.columns if c.lower().startswith("total ")
                 ]
@@ -804,7 +808,7 @@ def run(params: dict):
                             "name": pretty_col(primary_col),
                             "categories": f"='{short_sheet}'!$A$2:$A${num_rows + 1}",
                             "values": f"='{short_sheet}'!${df_columns[loc_primary]}$2:${df_columns[loc_primary]}${num_rows + 1}",
-                            "line": {"color": Color_Palette[0], "width": 2},
+                            "line": {"color": graph_color_palette[0], "width": 2},
                             "y_axis": True,
                         }
                     )
@@ -823,7 +827,7 @@ def run(params: dict):
                             "name": pretty_col(cost_col),
                             "categories": f"='{short_sheet}'!$A$2:$A${num_rows + 1}",
                             "values": f"='{short_sheet}'!${df_columns[loc_cost]}$2:${df_columns[loc_cost]}${num_rows + 1}",
-                            "line": {"color": Color_Palette[1], "width": 2},
+                            "line": {"color": graph_color_palette[1], "width": 2},
                             "y2_axis": True,
                         }
                     )
