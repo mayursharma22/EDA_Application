@@ -2,7 +2,6 @@
 import os
 import tempfile
 import hashlib
-import numpy as np
 
 # Third Party imports
 import pandas as pd
@@ -21,6 +20,7 @@ def _hash_file_like(file) -> str:
     if hasattr(file, "seek"):
         file.seek(0)
     return hashlib.sha256(data).hexdigest()
+
 
 def _auto_detect_date_column(
     df: pd.DataFrame, sample_max: int = 5000, threshold: float = 0.6
@@ -91,6 +91,7 @@ def build_eda_excel_bytes(file_bytes: bytes, file_name: str, params: dict) -> by
         with open(result_path, "rb") as fh:
             return fh.read()
 
+
 @st.dialog("Long Format Required", width="large")
 def long_format_required_dialog():
     st.markdown(
@@ -107,8 +108,11 @@ Please upload a long-format CSV that has exactly one metric-like numeric column.
         unsafe_allow_html=True,
     )
     if st.button("Okay", type="primary"):
-        st.session_state["uploader_nonce"] = st.session_state.get("uploader_nonce", 0) + 1
+        st.session_state["uploader_nonce"] = (
+            st.session_state.get("uploader_nonce", 0) + 1
+        )
         st.rerun()
+
 
 def _is_monotonic_like(s: pd.Series) -> bool:
     """
@@ -142,11 +146,15 @@ def _split_numeric_id_vs_metric(
                 mask &= df[k].notna()
         sorted_df = df.loc[mask].sort_values(sort_keys, kind="mergesort")
     else:
-        sorted_df = df 
+        sorted_df = df
 
     for col in df.select_dtypes(include="number").columns:
         s_sorted = sorted_df[col].dropna()
-        if monotonic_checks and pd.api.types.is_integer_dtype(s_sorted) and _is_monotonic_like(s_sorted):
+        if (
+            monotonic_checks
+            and pd.api.types.is_integer_dtype(s_sorted)
+            and _is_monotonic_like(s_sorted)
+        ):
             id_like.append(col)
         else:
             metric_like.append(col)
@@ -161,7 +169,7 @@ def eda_generation():
         "Upload a CSV and configure parameters. Generates a formatted Excel workbook."
     )
 
-    #------------------------------- Upload File ---------------------------    
+    # ------------------------------- Upload File ---------------------------
     up = st.file_uploader(
         "**Upload CSV**",
         type=["csv"],
@@ -173,18 +181,17 @@ def eda_generation():
         return
 
     df = pd.read_csv(up)
-    df.columns = [str(c).strip() for c in df.columns]    
+    df.columns = [str(c).strip() for c in df.columns]
     is_unnamed = df.columns.str.match(r"(?i)^\s*unnamed")
-    is_blank   = (df.columns.str.strip() == "")
+    is_blank = df.columns.str.strip() == ""
     mask_unnamed_or_blank = is_unnamed | is_blank
 
     if mask_unnamed_or_blank.any():
         df = df.loc[:, ~mask_unnamed_or_blank]
 
-
     if mask_unnamed_or_blank.any():
-        df = df.loc[:, ~mask_unnamed_or_blank]     
- 
+        df = df.loc[:, ~mask_unnamed_or_blank]
+
     sort_keys = []
     try:
         auto_idx = _auto_detect_date_column(df)
@@ -194,7 +201,7 @@ def eda_generation():
         date_like = [c for c in df.columns if "date" in str(c).lower()]
         if date_like:
             sort_keys = [date_like[0]]
-    
+
     id_like, metric_like = _split_numeric_id_vs_metric(
         df=df,
         sort_keys=sort_keys,
@@ -212,10 +219,10 @@ def eda_generation():
 
     st.markdown("#### Preview:")
     st.dataframe(df.head())
-    
-    #------------------------------- Upload File ---------------------------
 
-    #----------------------------- Date Selection --------------------------
+    # ------------------------------- Upload File ---------------------------
+
+    # ----------------------------- Date Selection --------------------------
     st.markdown("#### Select Key Fields")
     auto_date_idx = _auto_detect_date_column(df)
     date_var = st.selectbox(
@@ -286,8 +293,8 @@ def eda_generation():
                     key="eda_weekstart_select",
                 )
                 st.caption(f"The selected week start day is: **{selected_week_start}**")
-    
-    #----------------------------- Date Selection --------------------------
+
+    # ----------------------------- Date Selection --------------------------
 
     # ------------------- Metric/Value and Cost Selection  -----------------
 
@@ -322,13 +329,13 @@ def eda_generation():
         return -1
 
     metric_idx = _find_index_case_insensitive(df.columns, ["metrics", "metric"])
-    value_idx  = _find_index_case_insensitive(df.columns, ["values", "value"])
+    value_idx = _find_index_case_insensitive(df.columns, ["values", "value"])
 
     metric_options = ["(None)"] + list(df.columns)
-    value_options  = ["(None)"] + list(df.columns)
+    value_options = ["(None)"] + list(df.columns)
 
-    metric_index = 0 if metric_idx == -1 else metric_idx + 1 
-    value_index  = 0 if value_idx  == -1 else value_idx  + 1
+    metric_index = 0 if metric_idx == -1 else metric_idx + 1
+    value_index = 0 if value_idx == -1 else value_idx + 1
 
     metric_var_sel = st.selectbox(
         "Metric column",
@@ -343,20 +350,17 @@ def eda_generation():
         key="eda_value_var",
     )
 
-    is_metric_none = (metric_var_sel == "(None)")
-    is_value_none  = (value_var_sel == "(None)")
-    same_col = (not is_metric_none and not is_value_none and metric_var_sel == value_var_sel)
+    is_metric_none = metric_var_sel == "(None)"
+    is_value_none = value_var_sel == "(None)"
+    same_col = (
+        not is_metric_none and not is_value_none and metric_var_sel == value_var_sel
+    )
 
     if same_col:
         metric_names = [metric_var_sel]
     elif not is_metric_none and (metric_var_sel in df.columns):
         metric_names = (
-            df[metric_var_sel]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .unique()
-            .tolist()
+            df[metric_var_sel].dropna().astype(str).str.strip().unique().tolist()
         )
     else:
         metric_names = []
@@ -414,15 +418,14 @@ def eda_generation():
     # if selected_week_start:
     #     params["week_start_day"] = selected_week_start
 
-    
     params = {
         "date_var": date_var,
         "date_grain": date_grain,
         "QC_variables": qc_vars,
         "columns_breakdown": breakdown,
-        "metrics": [],        
-        "metric_var": "",     
-        "value_var": "",       
+        "metrics": [],
+        "metric_var": "",
+        "value_var": "",
         "cost_var": cost_var,
     }
     if selected_week_start:
@@ -981,10 +984,9 @@ def eda_generation():
     # if not export_enabled:
     #     st.caption("Set required colors and click Proceed to enable Export button.")
 
-    
     st.markdown("#### Export")
     params["graph_colors"] = st.session_state.get("graph_colors", [])
-    params["tab_color"]    = st.session_state.get("tab_color", "")
+    params["tab_color"] = st.session_state.get("tab_color", "")
 
     missing = []
     if (metric_var_sel == "(None)") and not same_col:

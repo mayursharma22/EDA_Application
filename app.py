@@ -10,6 +10,7 @@ st.set_page_config(page_title="Data Preparation & EDA", layout="wide")
 # Navigation helpers
 TOOLS = ["Data Preparation", "EDA Generation"]
 
+
 def _init_nav_state():
     if "effective_nav" not in st.session_state:
         st.session_state.effective_nav = TOOLS[0]
@@ -17,6 +18,7 @@ def _init_nav_state():
         st.session_state.pending_nav_target = None
     if "nav_confirm_open" not in st.session_state:
         st.session_state.nav_confirm_open = False
+
 
 def _has_work_in_tool(tool_name: str) -> bool:
     ss = st.session_state
@@ -44,6 +46,7 @@ def _has_work_in_tool(tool_name: str) -> bool:
         or ss.get("tab_color")
     )
 
+
 def _reset_tool_state(prev_tool: str):
     preserve = {
         "effective_nav": st.session_state.get("effective_nav"),
@@ -58,11 +61,13 @@ def _reset_tool_state(prev_tool: str):
     for k, v in preserve.items():
         st.session_state[k] = v
 
+
 # Dialog Box
 @st.dialog("Confirm Action", width="large")
 def confirm_switch_dialog():
     st.markdown(
-        "Switching between tools might lose your work." " **Are you sure you want to proceed?**",
+        "Switching between tools might lose your work."
+        " **Are you sure you want to proceed?**",
         unsafe_allow_html=True,
     )
     c1, c2 = st.columns(2)
@@ -107,6 +112,7 @@ def _on_nav_change():
         st.session_state.nav_confirm_open = False
         st.session_state.pending_nav_target = None
         st.session_state.main_nav = new_choice
+
 
 # Navigation
 st.sidebar.header("Navigation")
