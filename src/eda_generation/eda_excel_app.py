@@ -2,6 +2,7 @@
 import os
 import tempfile
 import hashlib
+import numpy as np
 
 # Third Party imports
 import pandas as pd
@@ -20,7 +21,6 @@ def _hash_file_like(file) -> str:
     if hasattr(file, "seek"):
         file.seek(0)
     return hashlib.sha256(data).hexdigest()
-
 
 def _auto_detect_date_column(
     df: pd.DataFrame, sample_max: int = 5000, threshold: float = 0.6
@@ -91,6 +91,68 @@ def build_eda_excel_bytes(file_bytes: bytes, file_name: str, params: dict) -> by
         with open(result_path, "rb") as fh:
             return fh.read()
 
+@st.dialog("Long Format Required", width="large")
+def long_format_required_dialog():
+    st.markdown(
+        """
+**This file does not look like a *long format* dataset.**
+
+A long-format CSV typically has:
+- A date/time column (e.g., `Date`)
+- One or more categorical dimensions (e.g., `Region`, `Channel`)
+- Exactly **one** numeric **metric** column (e.g., values per row)
+
+Please upload a long-format CSV that has exactly one metric-like numeric column.
+        """,
+        unsafe_allow_html=True,
+    )
+    if st.button("Okay", type="primary"):
+        st.session_state["uploader_nonce"] = st.session_state.get("uploader_nonce", 0) + 1
+        st.rerun()
+
+def _is_monotonic_like(s: pd.Series) -> bool:
+    """
+    Treat as categorical/ID-like if the numeric series is monotonic non-decreasing
+    (e.g., 1,2,3,... or 500,501,...) after sorting by natural keys.
+    """
+    if not pd.api.types.is_numeric_dtype(s):
+        return False
+    s = s.dropna()
+    if s.empty:
+        return False
+    return bool(s.is_monotonic_increasing or s.is_monotonic_decreasing)
+
+
+def _split_numeric_id_vs_metric(
+    df: pd.DataFrame,
+    sort_keys: list,
+    monotonic_checks: bool = True,
+) -> tuple[list[str], list[str]]:
+    """
+    Classify numeric columns using ONLY monotonicity (no ratio/density):
+      - id_like    : integer dtype AND monotonic after sorting by 'sort_keys'
+      - metric_like: everything else
+    """
+    id_like, metric_like = [], []
+
+    if sort_keys:
+        mask = pd.Series(True, index=df.index)
+        for k in sort_keys:
+            if k in df.columns:
+                mask &= df[k].notna()
+        sorted_df = df.loc[mask].sort_values(sort_keys, kind="mergesort")
+    else:
+        sorted_df = df 
+
+    for col in df.select_dtypes(include="number").columns:
+        s_sorted = sorted_df[col].dropna()
+        if monotonic_checks and pd.api.types.is_integer_dtype(s_sorted) and _is_monotonic_like(s_sorted):
+            id_like.append(col)
+        else:
+            metric_like.append(col)
+
+    return id_like, metric_like
+
 
 # ---------- main ----------
 def eda_generation():
@@ -99,15 +161,58 @@ def eda_generation():
         "Upload a CSV and configure parameters. Generates a formatted Excel workbook."
     )
 
-    #------------------------------- Upload File ---------------------------
-    up = st.file_uploader("**Upload CSV**", type=["csv"], key="eda_uploader")
+    #------------------------------- Upload File ---------------------------    
+    up = st.file_uploader(
+        "**Upload CSV**",
+        type=["csv"],
+        key=f"eda_uploader_{st.session_state.get('uploader_nonce', 0)}",
+    )
+
     if not up:
         st.info("Upload a CSV file to begin.")
         return
 
     df = pd.read_csv(up)
+    df.columns = [str(c).strip() for c in df.columns]    
+    is_unnamed = df.columns.str.match(r"(?i)^\s*unnamed")
+    is_blank   = (df.columns.str.strip() == "")
+    mask_unnamed_or_blank = is_unnamed | is_blank
+
+    if mask_unnamed_or_blank.any():
+        df = df.loc[:, ~mask_unnamed_or_blank]
+
+
+    if mask_unnamed_or_blank.any():
+        df = df.loc[:, ~mask_unnamed_or_blank]     
+ 
+    sort_keys = []
+    try:
+        auto_idx = _auto_detect_date_column(df)
+        if 0 <= auto_idx < len(df.columns):
+            sort_keys = [df.columns[auto_idx]]
+    except Exception:
+        date_like = [c for c in df.columns if "date" in str(c).lower()]
+        if date_like:
+            sort_keys = [date_like[0]]
+    
+    id_like, metric_like = _split_numeric_id_vs_metric(
+        df=df,
+        sort_keys=sort_keys,
+        monotonic_checks=True,
+    )
+
+    metric_like_count = len(metric_like)
+
+    if metric_like_count != 1:
+        long_format_required_dialog()
+        return
+
+    for c in id_like:
+        df[c] = df[c].astype("category")
+
     st.markdown("#### Preview:")
     st.dataframe(df.head())
+    
     #------------------------------- Upload File ---------------------------
 
     #----------------------------- Date Selection --------------------------
