@@ -99,7 +99,7 @@ def eda_generation():
         "Upload a CSV and configure parameters. Generates a formatted Excel workbook."
     )
 
-    # Upload
+    #------------------------------- Upload File ---------------------------
     up = st.file_uploader("**Upload CSV**", type=["csv"], key="eda_uploader")
     if not up:
         st.info("Upload a CSV file to begin.")
@@ -108,6 +108,9 @@ def eda_generation():
     df = pd.read_csv(up)
     st.markdown("#### Preview:")
     st.dataframe(df.head())
+    #------------------------------- Upload File ---------------------------
+
+    #----------------------------- Date Selection --------------------------
     st.markdown("#### Select Key Fields")
     auto_date_idx = _auto_detect_date_column(df)
     date_var = st.selectbox(
@@ -178,29 +181,81 @@ def eda_generation():
                     key="eda_weekstart_select",
                 )
                 st.caption(f"The selected week start day is: **{selected_week_start}**")
+    
+    #----------------------------- Date Selection --------------------------
 
-    default_metric_idx = (
-        list(df.columns).index("Metrics") if "Metrics" in df.columns else 0
-    )
-    default_value_idx = (
-        list(df.columns).index("Values") if "Values" in df.columns else 0
-    )
+    # ------------------- Metric/Value and Cost Selection  -----------------
 
-    metric_var = st.selectbox(
+    # default_metric_idx = (
+    #     list(df.columns).index("Metrics") if "Metrics" in df.columns else 0
+    # )
+    # default_value_idx = (
+    #     list(df.columns).index("Values") if "Values" in df.columns else 0
+    # )
+
+    # metric_var = st.selectbox(
+    #     "Metric column",
+    #     options=df.columns,
+    #     index=default_metric_idx,
+    #     key="eda_metric_var",
+    # )
+    # value_var = st.selectbox(
+    #     "Value column", options=df.columns, index=default_value_idx, key="eda_value_var"
+    # )
+
+    # metric_names = (
+    #     df[metric_var].dropna().astype(str).str.strip().unique().tolist()
+    #     if metric_var in df.columns
+    #     else []
+    # )
+
+    def _find_index_case_insensitive(cols, candidates):
+        cmap = [c.strip().lower() for c in cols]
+        for cand in candidates:
+            if cand.lower() in cmap:
+                return cmap.index(cand.lower())
+        return -1
+
+    metric_idx = _find_index_case_insensitive(df.columns, ["metrics", "metric"])
+    value_idx  = _find_index_case_insensitive(df.columns, ["values", "value"])
+
+    metric_options = ["(None)"] + list(df.columns)
+    value_options  = ["(None)"] + list(df.columns)
+
+    metric_index = 0 if metric_idx == -1 else metric_idx + 1 
+    value_index  = 0 if value_idx  == -1 else value_idx  + 1
+
+    metric_var_sel = st.selectbox(
         "Metric column",
-        options=df.columns,
-        index=default_metric_idx,
+        options=metric_options,
+        index=metric_index,
         key="eda_metric_var",
     )
-    value_var = st.selectbox(
-        "Value column", options=df.columns, index=default_value_idx, key="eda_value_var"
+    value_var_sel = st.selectbox(
+        "Value column",
+        options=value_options,
+        index=value_index,
+        key="eda_value_var",
     )
 
-    metric_names = (
-        df[metric_var].dropna().astype(str).str.strip().unique().tolist()
-        if metric_var in df.columns
-        else []
-    )
+    is_metric_none = (metric_var_sel == "(None)")
+    is_value_none  = (value_var_sel == "(None)")
+    same_col = (not is_metric_none and not is_value_none and metric_var_sel == value_var_sel)
+
+    if same_col:
+        metric_names = [metric_var_sel]
+    elif not is_metric_none and (metric_var_sel in df.columns):
+        metric_names = (
+            df[metric_var_sel]
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .unique()
+            .tolist()
+        )
+    else:
+        metric_names = []
+
     cost_metric_options = ["(None)"] + sorted(metric_names)
     cost_metric = st.selectbox(
         "Cost/Spend metric (optional)",
@@ -212,8 +267,18 @@ def eda_generation():
 
     st.markdown("#### Select Breakdown Fields")
 
-    dim_exclude = {date_var, metric_var, value_var}
+    # dim_exclude = {date_var, metric_var, value_var}
+    dim_exclude = {date_var}
+    if not is_metric_none:
+        dim_exclude.add(metric_var_sel)
+    if not is_value_none:
+        dim_exclude.add(value_var_sel)
+
     dim_candidates = [c for c in df.columns if c not in dim_exclude]
+
+    # ------------------- Metric/Value and Cost Selection  -----------------
+
+    # -------------------------- Breakdown Selection  ----------------------
 
     qc_vars = st.multiselect(
         "Select column(s) to split data into individual Excel tab",
@@ -226,19 +291,47 @@ def eda_generation():
         key="eda_breakdown",
     )
 
+    # -------------------- Breakdown Selection  ------------------#
+
+    # ------------------------ Param ---------------------------- #
+
+    # params = {
+    #     "date_var": date_var,
+    #     "date_grain": date_grain,
+    #     "QC_variables": qc_vars,
+    #     "columns_breakdown": breakdown,
+    #     "metrics": [],
+    #     "metric_var": metric_var,
+    #     "value_var": value_var,
+    #     "cost_var": cost_var,
+    # }
+
+    # if selected_week_start:
+    #     params["week_start_day"] = selected_week_start
+
+    
     params = {
         "date_var": date_var,
         "date_grain": date_grain,
         "QC_variables": qc_vars,
         "columns_breakdown": breakdown,
-        "metrics": [],
-        "metric_var": metric_var,
-        "value_var": value_var,
+        "metrics": [],        
+        "metric_var": "",     
+        "value_var": "",       
         "cost_var": cost_var,
     }
-
     if selected_week_start:
         params["week_start_day"] = selected_week_start
+
+    if same_col:
+        params["metrics"] = [metric_var_sel]
+    else:
+        if not is_metric_none:
+            params["metric_var"] = metric_var_sel
+        if not is_value_none:
+            params["value_var"] = value_var_sel
+
+    # ------------------------ Param ---------------------------- #
 
     # ------------------- Color Customization Section ----------- #
     st.markdown("#### Customize Colors")
@@ -755,13 +848,54 @@ def eda_generation():
 
     # ------------------------- Export -------------------------- #
 
+    # st.markdown("#### Export")
+    # params["graph_colors"] = st.session_state.get("graph_colors", [])
+    # params["tab_color"] = st.session_state.get("tab_color", "")
+
+    # export_enabled = (not need_proceed) or (
+    #     st.session_state.get("proceed_confirmed") and can_proceed
+    # )
+
+    # if export_enabled:
+    #     with st.spinner("Preparing workbook..."):
+    #         excel_bytes = build_eda_excel_bytes(
+    #             file_bytes=up.getvalue(), file_name=up.name, params=params
+    #         )
+    # else:
+    #     excel_bytes = b""
+
+    # st.download_button(
+    #     label="🚀 Generate & Download EDA Workbook",
+    #     data=excel_bytes if export_enabled else b"",
+    #     file_name="EDA_Final_Output.xlsx",
+    #     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    #     key="eda_generate_and_download",
+    #     disabled=not export_enabled,
+    # )
+
+    # if not export_enabled:
+    #     st.caption("Set required colors and click Proceed to enable Export button.")
+
+    
     st.markdown("#### Export")
     params["graph_colors"] = st.session_state.get("graph_colors", [])
-    params["tab_color"] = st.session_state.get("tab_color", "")
+    params["tab_color"]    = st.session_state.get("tab_color", "")
 
-    export_enabled = (not need_proceed) or (
+    missing = []
+    if (metric_var_sel == "(None)") and not same_col:
+        missing.append("Metric")
+    if (value_var_sel == "(None)") and not same_col:
+        missing.append("Value")
+
+    export_enabled_colors = (not need_proceed) or (
         st.session_state.get("proceed_confirmed") and can_proceed
     )
+
+    export_enabled = export_enabled_colors and (len(missing) == 0)
+
+    if len(missing) > 0:
+        pretty = " and ".join(missing)
+        st.warning(f"Please choose the {pretty} column(s) before exporting.")
 
     if export_enabled:
         with st.spinner("Preparing workbook..."):
@@ -781,6 +915,9 @@ def eda_generation():
     )
 
     if not export_enabled:
-        st.caption("Set required colors and click Proceed to enable Export button.")
+        if not export_enabled_colors:
+            st.caption("Set required colors and click Proceed to enable Export button.")
+        elif len(missing) > 0:
+            pass
 
     # ------------------------- Export ------------------------- #
