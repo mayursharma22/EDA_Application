@@ -100,8 +100,8 @@ def long_format_required_dialog():
 
 A long-format CSV typically has:
 - A date/time column (e.g., `Date`)
-- One or more categorical dimensions (e.g., `Region`, `Channel`)
-- Exactly **one** numeric **metric** column (e.g., values per row)
+- One or more categorical dimensions (e.g., `Channel`, `SubChannel`, `Metrics`)
+- Exactly **one** numeric **Values** column (e.g., `Values`)
 
 Please upload a long-format CSV that has exactly one metric-like numeric column.
         """,

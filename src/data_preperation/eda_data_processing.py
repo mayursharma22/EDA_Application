@@ -55,7 +55,7 @@ def data_preperation():
     if "breakdown_state" not in st.session_state:
         st.session_state.breakdown_state = {}
 
-    st.title("📊 Data Preparation for EDA")
+    st.title("📊 EDA Data Preparation: Melt & Transform")
 
     # ------------------------------------------------------------
     # --------------------- Constants / Helpers ------------------
@@ -114,11 +114,18 @@ def data_preperation():
             non_numeric_ratio = coerced.isna().sum() / int(mask.sum())
 
         return non_numeric_ratio < threshold
-
-    EXCLUDE_MELT_PREFIXES = ["dma_code", "dma_name", "unnamed", "npi", "hcp"]
+    
+    EXCLUDE_MELT_PREFIXES = ["dma_code", "dma_name", "unnamed", "npi", "hcp", "dma", "_id"]
 
     def filter_melt_candidates(candidates):
-        lc_prefixes = tuple(p.lower() for p in EXCLUDE_MELT_PREFIXES)
+        lc_prefixes = tuple(p.lower().replace("_", "").replace(" ", "") for p in EXCLUDE_MELT_PREFIXES)
+        def keep(col):
+            c = str(col).strip().lower().replace("_", "").replace(" ", "")
+            return not (c in lc_prefixes or any(c.startswith(pref) for pref in lc_prefixes))
+        return [c for c in candidates if keep(c)]
+
+
+        
 
         def keep(col):
             c = str(col).strip().lower()
@@ -872,6 +879,7 @@ def data_preperation():
                     key=f"final_prev_only__{state_key}",
                     use_container_width=True,
                 ):
+                    st.session_state.skip_uploader_clear_once = True
                     st.session_state.file_index = total_files - 1
                     st.session_state.page = "process"
                     st.rerun()
@@ -1018,11 +1026,44 @@ def data_preperation():
     # ------------------------- PAGE 1: PROCESS ------------------
     # ------------------------------------------------------------
     if st.session_state.page == "process":
+        # uploaded_files = st.file_uploader(
+        #     "**Upload CSV or Excel files**",
+        #     type=["csv", "xlsx"],
+        #     accept_multiple_files=True,
+        # )
+
+        
         uploaded_files = st.file_uploader(
             "**Upload CSV or Excel files**",
             type=["csv", "xlsx"],
             accept_multiple_files=True,
+            key="files_uploader",  # <-- add a key
         )
+
+        # ---------- Minimal robust clear-on-remove with a skip flag ----------
+        # Skip the clear once if we navigated from the final page
+        skip_clear = st.session_state.pop("skip_uploader_clear_once", False)
+
+        # Track previous uploader selection count
+        if "uploader_count" not in st.session_state:
+            st.session_state.uploader_count = 0
+
+        current_count = len(uploaded_files) if uploaded_files else 0
+        prev_count = st.session_state.uploader_count
+
+        # Detect an actual user clear (transition: >0 -> 0) and only when not skipping
+        user_cleared_all = (prev_count > 0) and (current_count == 0)
+
+        if user_cleared_all and not skip_clear:
+            st.session_state.raw_data.clear()
+            st.session_state.file_index = 0
+            # (Optional) full reset if needed:
+            # st.session_state.preprocessed_data.clear()
+
+        # Update tracker
+        st.session_state.uploader_count = current_count
+        # --------------------------------------------------------------------
+
 
         ################ New added code for go on prev page from final page ######
         if (not uploaded_files) and st.session_state.raw_data:
