@@ -63,7 +63,7 @@ def _reset_tool_state(prev_tool: str):
 
 
 # Dialog Box
-@st.dialog("Confirm Action", width="large")
+@st.dialog("Confirm Action", width="medium")
 def confirm_switch_dialog():
     st.markdown(
         "Switching between tools might lose your work."

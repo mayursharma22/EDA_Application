@@ -114,18 +114,29 @@ def data_preperation():
             non_numeric_ratio = coerced.isna().sum() / int(mask.sum())
 
         return non_numeric_ratio < threshold
-    
-    EXCLUDE_MELT_PREFIXES = ["dma_code", "dma_name", "unnamed", "npi", "hcp", "dma", "_id"]
+
+    EXCLUDE_MELT_PREFIXES = [
+        "dma_code",
+        "dma_name",
+        "unnamed",
+        "npi",
+        "hcp",
+        "dma",
+        "_id",
+    ]
 
     def filter_melt_candidates(candidates):
-        lc_prefixes = tuple(p.lower().replace("_", "").replace(" ", "") for p in EXCLUDE_MELT_PREFIXES)
+        lc_prefixes = tuple(
+            p.lower().replace("_", "").replace(" ", "") for p in EXCLUDE_MELT_PREFIXES
+        )
+
         def keep(col):
             c = str(col).strip().lower().replace("_", "").replace(" ", "")
-            return not (c in lc_prefixes or any(c.startswith(pref) for pref in lc_prefixes))
+            return not (
+                c in lc_prefixes or any(c.startswith(pref) for pref in lc_prefixes)
+            )
+
         return [c for c in candidates if keep(c)]
-
-
-        
 
         def keep(col):
             c = str(col).strip().lower()
@@ -1032,7 +1043,6 @@ def data_preperation():
         #     accept_multiple_files=True,
         # )
 
-        
         uploaded_files = st.file_uploader(
             "**Upload CSV or Excel files**",
             type=["csv", "xlsx"],
@@ -1063,7 +1073,6 @@ def data_preperation():
         # Update tracker
         st.session_state.uploader_count = current_count
         # --------------------------------------------------------------------
-
 
         ################ New added code for go on prev page from final page ######
         if (not uploaded_files) and st.session_state.raw_data:

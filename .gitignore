@@ -13,3 +13,4 @@ test/
 *.parquet
 .vscode
 .env
+test.py
