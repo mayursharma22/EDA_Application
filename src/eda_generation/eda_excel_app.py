@@ -9,18 +9,51 @@ import streamlit as st
 
 # Internal imports
 from .eda_excel_generation import run as eda_excel_run
-
+from .eda_ppt_generation import run as eda_ppt_run
 
 st.set_page_config(page_title="EDA Generation", layout="wide")
 
-
 # ---------- helpers ----------
+@st.cache_data(show_spinner=False)
+def build_eda_ppt_bytes(file_bytes: bytes, file_name: str, params: dict, template_bytes: bytes | None) -> bytes:
+    import os, tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        src_path = os.path.join(tmpdir, file_name)
+        with open(src_path, "wb") as f:
+            f.write(file_bytes)
+        template_path = None
+        if template_bytes:
+            template_path = os.path.join(tmpdir, "template.pptx")
+            with open(template_path, "wb") as tf:
+                tf.write(template_bytes)
+        df = pd.read_csv(src_path)
+        out_path = os.path.join(tmpdir, "EDA_Deck.pptx")
+        eda_ppt_run(params=params, template_path=template_path, df=df, output_path=out_path)
+        with open(out_path, "rb") as fh:
+            return fh.read()
+
+def _get_sample_csv_bytes() -> bytes:
+    sample_csv = (
+        "Date,Brand,Indication,Subchannel,Segment,Publisher,Channel,Metrics,Values\n"
+        "1/6/2025,Brand_A,Indication_A,Brand,DTC,Bing,Search,Clicks,321\n"
+        "1/6/2025,Brand_A,Indication_A,Brand,DTC,Bing,Search,Cost,1823.25\n"
+        "1/6/2025,Brand_A,Indication_A,Brand,DTC,Bing,Search,Impressions,7164\n"
+        "1/6/2025,Brand_A,Indication_A,Brand,DTC,Google,Search,Clicks,1695\n"
+        "1/6/2025,Brand_A,Indication_A,Brand,DTC,Google,Search,Cost,12557.04\n"
+        "1/6/2025,Brand_B,Indication_A,Banner,HCP,Meta,Social,Clicks,3749\n"
+        "1/6/2025,Brand_B,Indication_A,Banner,HCP,Meta,Social,Cost,12357.00045\n"
+        "1/6/2025,Brand_B,Indication_A,Banner,HCP,Meta,Social,Impressions,1895173\n"
+        "1/13/2025,Brand_A,Indication_A,Banner,HCP,Meta,Social,Clicks,2256\n"
+        "1/13/2025,Brand_A,Indication_A,Banner,HCP,Meta,Social,Cost,12458.43036\n"
+    )
+    return sample_csv.encode("utf-8")
+
+
 def _hash_file_like(file) -> str:
     data = file.getvalue() if hasattr(file, "getvalue") else file.read()
     if hasattr(file, "seek"):
         file.seek(0)
     return hashlib.sha256(data).hexdigest()
-
 
 def _auto_detect_date_column(
     df: pd.DataFrame, sample_max: int = 5000, threshold: float = 0.6
@@ -92,7 +125,7 @@ def build_eda_excel_bytes(file_bytes: bytes, file_name: str, params: dict) -> by
             return fh.read()
 
 
-@st.dialog("Long Format Required", width="large")
+@st.dialog("Long Format Required", width="medium")
 def long_format_required_dialog():
     st.markdown(
         """
@@ -177,8 +210,22 @@ def eda_generation():
     )
 
     if not up:
-        st.info("Upload a CSV file to begin.")
+        st.info("Upload a CSV file to begin")
+
+        with st.expander("📄 **Sample file format** ", expanded=True):
+
+            import io
+            sample_bytes = _get_sample_csv_bytes()
+            sample_df = pd.read_csv(io.BytesIO(sample_bytes))
+            st.dataframe(sample_df, use_container_width=True)
+
         return
+
+    if "_use_sample_csv_bytes" in st.session_state and st.session_state["_use_sample_csv_bytes"]:
+        import io
+        up = io.BytesIO(st.session_state["_use_sample_csv_bytes"])
+        up.name = "eda_sample.csv"
+
 
     df = pd.read_csv(up)
     df.columns = [str(c).strip() for c in df.columns]
@@ -298,29 +345,6 @@ def eda_generation():
 
     # ------------------- Metric/Value and Cost Selection  -----------------
 
-    # default_metric_idx = (
-    #     list(df.columns).index("Metrics") if "Metrics" in df.columns else 0
-    # )
-    # default_value_idx = (
-    #     list(df.columns).index("Values") if "Values" in df.columns else 0
-    # )
-
-    # metric_var = st.selectbox(
-    #     "Metric column",
-    #     options=df.columns,
-    #     index=default_metric_idx,
-    #     key="eda_metric_var",
-    # )
-    # value_var = st.selectbox(
-    #     "Value column", options=df.columns, index=default_value_idx, key="eda_value_var"
-    # )
-
-    # metric_names = (
-    #     df[metric_var].dropna().astype(str).str.strip().unique().tolist()
-    #     if metric_var in df.columns
-    #     else []
-    # )
-
     def _find_index_case_insensitive(cols, candidates):
         cmap = [c.strip().lower() for c in cols]
         for cand in candidates:
@@ -403,20 +427,6 @@ def eda_generation():
     # -------------------- Breakdown Selection  ------------------#
 
     # ------------------------ Param ---------------------------- #
-
-    # params = {
-    #     "date_var": date_var,
-    #     "date_grain": date_grain,
-    #     "QC_variables": qc_vars,
-    #     "columns_breakdown": breakdown,
-    #     "metrics": [],
-    #     "metric_var": metric_var,
-    #     "value_var": value_var,
-    #     "cost_var": cost_var,
-    # }
-
-    # if selected_week_start:
-    #     params["week_start_day"] = selected_week_start
 
     params = {
         "date_var": date_var,
@@ -953,38 +963,115 @@ def eda_generation():
             st.session_state.proceed_confirmed = True
 
     # ------------------------- Proceed ------------------------- #
-
-    # ------------------------- Export -------------------------- #
-
+    
+    # ------------------------- Export -------------------------- #   
     # st.markdown("#### Export")
+
+    # ppt_choice = st.radio(
+    #     "Do you want to generate PPT Deck?", 
+    #     options=["No", "Yes"], 
+    #     index=0, 
+    #     horizontal=True, 
+    #     key="eda_generate_ppt_choice",
+    # )
+
+    # ppt_template_bytes = None
+    # if ppt_choice == "Yes":
+    #     ppt_up = st.file_uploader(
+    #         "**Upload PPTX template**",
+    #         type=["pptx"],
+    #         key="eda_ppt_template_uploader",
+    #     )
+    #     if ppt_up:
+    #         ppt_template_bytes = ppt_up.getvalue()
+
+
     # params["graph_colors"] = st.session_state.get("graph_colors", [])
     # params["tab_color"] = st.session_state.get("tab_color", "")
 
-    # export_enabled = (not need_proceed) or (
-    #     st.session_state.get("proceed_confirmed") and can_proceed
-    # )
+    # missing = []
+    # if (metric_var_sel == "(None)") and not same_col:
+    #     missing.append("Metric")
+    # if (value_var_sel == "(None)") and not same_col:
+    #     missing.append("Value")
+
+    # export_enabled_colors = (not need_proceed) or (st.session_state.get("proceed_confirmed") and can_proceed)
+    # export_enabled = export_enabled_colors and (len(missing) == 0)
+
+    # if len(missing) > 0:
+    #     pretty = " and ".join(missing)
+    #     st.warning(f"Please choose the {pretty} column(s) before exporting.")
 
     # if export_enabled:
-    #     with st.spinner("Preparing workbook..."):
+    #     with st.spinner("Preparing output..."):
     #         excel_bytes = build_eda_excel_bytes(
     #             file_bytes=up.getvalue(), file_name=up.name, params=params
     #         )
+    #         if st.session_state.get("eda_generate_ppt_choice") == "Yes":
+    #             ppt_bytes = build_eda_ppt_bytes(
+    #                 file_bytes=up.getvalue(), file_name=up.name, params=params, template_bytes=ppt_template_bytes
+    #             )
+    #             # Bundle ZIP
+    #             import io, zipfile
+    #             zip_buffer = io.BytesIO()
+    #             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+    #                 zf.writestr("EDA_Final_Output.xlsx", excel_bytes)
+    #                 zf.writestr("EDA_Deck.pptx", ppt_bytes)
+    #             zip_buffer.seek(0)
+    #             st.download_button(
+    #                 label="🚀 Generate & Download (Excel + PPT ZIP)",
+    #                 data=zip_buffer.getvalue(),
+    #                 file_name="EDA_Output.zip",
+    #                 mime="application/zip",
+    #                 key="eda_generate_zip_download"
+    #             )
+    #         else:
+    #             st.download_button(
+    #                 label="🚀 Generate & Download EDA Workbook",
+    #                 data=excel_bytes,
+    #                 file_name="EDA_Final_Output.xlsx",
+    #                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    #                 key="eda_generate_and_download"
+    #             )
     # else:
-    #     excel_bytes = b""
+    #     if not export_enabled_colors:
+    #         st.caption("Set required colors and click Proceed to enable Export button.")
 
-    # st.download_button(
-    #     label="🚀 Generate & Download EDA Workbook",
-    #     data=excel_bytes if export_enabled else b"",
-    #     file_name="EDA_Final_Output.xlsx",
-    #     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    #     key="eda_generate_and_download",
-    #     disabled=not export_enabled,
-    # )
-
-    # if not export_enabled:
-    #     st.caption("Set required colors and click Proceed to enable Export button.")
-
+    
     st.markdown("#### Export")
+
+    left, right = st.columns([1,1])
+
+    with left:
+        st.markdown('<div class="align-top">', unsafe_allow_html=True)
+        st.markdown("###### Choose files to download")
+        want_excel = st.checkbox(
+            "Generate Excel Workbook",
+            value=True,
+            key="export_excel"
+        )
+
+        want_ppt = st.checkbox(
+            "Generate PPT Deck",
+            value=True,
+            key="export_ppt"
+        )
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with right:
+        st.markdown('<div class="align-top">', unsafe_allow_html=True)
+        st.markdown("###### Upload PPTX template")
+        ppt_up = st.file_uploader(
+            "",
+            type=["pptx"],
+            key="eda_ppt_template_uploader"
+        )
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    ppt_template_bytes = ppt_up.getvalue() if ppt_up else None
+
     params["graph_colors"] = st.session_state.get("graph_colors", [])
     params["tab_color"] = st.session_state.get("tab_color", "")
 
@@ -994,37 +1081,86 @@ def eda_generation():
     if (value_var_sel == "(None)") and not same_col:
         missing.append("Value")
 
+    need_ppt_template = want_ppt and (ppt_template_bytes is None)
+    at_least_one = want_excel or want_ppt
+
     export_enabled_colors = (not need_proceed) or (
         st.session_state.get("proceed_confirmed") and can_proceed
     )
 
-    export_enabled = export_enabled_colors and (len(missing) == 0)
-
-    if len(missing) > 0:
-        pretty = " and ".join(missing)
-        st.warning(f"Please choose the {pretty} column(s) before exporting.")
-
-    if export_enabled:
-        with st.spinner("Preparing workbook..."):
-            excel_bytes = build_eda_excel_bytes(
-                file_bytes=up.getvalue(), file_name=up.name, params=params
-            )
-    else:
-        excel_bytes = b""
-
-    st.download_button(
-        label="🚀 Generate & Download EDA Workbook",
-        data=excel_bytes if export_enabled else b"",
-        file_name="EDA_Final_Output.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        key="eda_generate_and_download",
-        disabled=not export_enabled,
+    export_enabled = (
+        at_least_one
+        and not need_ppt_template
+        and (len(missing) == 0)
+        and export_enabled_colors
     )
 
-    if not export_enabled:
-        if not export_enabled_colors:
-            st.caption("Set required colors and click Proceed to enable Export button.")
-        elif len(missing) > 0:
-            pass
+    if len(missing) > 0:
+        st.warning(f"Please choose the {', '.join(missing)} column(s).")
 
+    if want_ppt and ppt_template_bytes is None:
+        st.warning("Please upload a PPTX template to enable export.")
+
+    if not export_enabled_colors:
+        st.caption("Set required colors and click Proceed to enable Export button.")
+
+    if not at_least_one:
+        st.info("Select at least one output type.")
+
+    excel_bytes = b""
+    ppt_bytes = b""
+
+    if export_enabled:
+        with st.spinner("Preparing output..."):
+
+            if want_excel:
+                excel_bytes = build_eda_excel_bytes(
+                    file_bytes=up.getvalue(),
+                    file_name=up.name,
+                    params=params
+                )
+
+            if want_ppt:
+                ppt_bytes = build_eda_ppt_bytes(
+                    file_bytes=up.getvalue(),
+                    file_name=up.name,
+                    params=params,
+                    template_bytes=ppt_template_bytes
+                )
+
+    if want_excel and want_ppt:
+        import io, zipfile
+        zip_buffer = io.BytesIO()
+
+        if export_enabled:
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr("EDA_Final_Output.xlsx", excel_bytes)
+                zf.writestr("EDA_Deck.pptx", ppt_bytes)
+            zip_buffer.seek(0)
+
+        st.download_button(
+            "🚀 Generate & Download (Excel + PPT ZIP)",
+            data=zip_buffer.getvalue() if export_enabled else b"",
+            file_name="EDA_Output.zip",
+            mime="application/zip",
+            disabled=not export_enabled
+        )
+
+    elif want_excel:
+        st.download_button(
+            "🚀 Generate & Download Excel Workbook",
+            data=excel_bytes if export_enabled else b"",
+            file_name="EDA_Final_Output.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            disabled=not export_enabled
+        )
+
+    elif want_ppt:
+        st.download_button(
+            "🚀 Generate & Download PPT Deck",
+            data=ppt_bytes if export_enabled else b"",
+            file_name="EDA_Deck.pptx",
+            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            disabled=not export_enabled
+        )
     # ------------------------- Export ------------------------- #
