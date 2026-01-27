@@ -15,7 +15,7 @@ from pptx.enum.chart import XL_CHART_TYPE
 from pptx.enum.chart import XL_LEGEND_POSITION
 
 
-#------------ utilities ------------
+# ------------ utilities ------------
 def _hex_to_rgb(hex_color: str) -> RGBColor:
     try:
         h = (hex_color or "").strip()
@@ -28,14 +28,18 @@ def _hex_to_rgb(hex_color: str) -> RGBColor:
         pass
     return RGBColor(0x12, 0x29, 0x5D)
 
+
 def _norm(s: str) -> str:
     return (s or "").strip().lower()
+
 
 def _ends_with_metric(col: str, metric: str) -> bool:
     return _norm(col).rsplit(" ", 1)[-1] == _norm(metric)
 
+
 def _is_total_metric(col: str, metric: str) -> bool:
     return _norm(col) == _norm(f"total {metric}")
+
 
 def _fmt_num(val, is_cost: bool) -> str:
     try:
@@ -46,6 +50,7 @@ def _fmt_num(val, is_cost: bool) -> str:
     except Exception:
         return str(val)
 
+
 def _to_list(series_like) -> List:
     if series_like is None:
         return []
@@ -54,6 +59,7 @@ def _to_list(series_like) -> List:
     if isinstance(series_like, list):
         return series_like
     return list(series_like)
+
 
 def _is_hex_color(s: str) -> bool:
     if not isinstance(s, str):
@@ -66,15 +72,19 @@ def _is_hex_color(s: str) -> bool:
         return True
     except ValueError:
         return False
-    
+
+
 def _add_table_in_rect(
     slide,
     df: pd.DataFrame,
-    left, top, width, max_height,
+    left,
+    top,
+    width,
+    max_height,
     header_hex: str,
-    min_body_row_h: int = Inches(0.22), 
-    header_row_h: int = Inches(0.28),    
-    prefer_rows: int | None = None       
+    min_body_row_h: int = Inches(0.22),
+    header_row_h: int = Inches(0.28),
+    prefer_rows: int | None = None,
 ) -> int:
     """
     Draw df as a PowerPoint table inside the given rectangle.
@@ -137,26 +147,37 @@ def _add_table_in_rect(
 
     return used_height
 
-def _append_totals_like_excel(pivot: pd.DataFrame, metrics: List[str], weekly: bool) -> pd.DataFrame:
+
+def _append_totals_like_excel(
+    pivot: pd.DataFrame, metrics: List[str], weekly: bool
+) -> pd.DataFrame:
     if pivot.empty or pivot.shape[1] <= 1:
         return pivot
     out = pivot.copy()
     first_col = out.columns[0]
 
     for m in metrics:
-        m_cols = [c for c in out.columns[1:]
-                  if _ends_with_metric(c, m) and not _is_total_metric(c, m)]
+        m_cols = [
+            c
+            for c in out.columns[1:]
+            if _ends_with_metric(c, m) and not _is_total_metric(c, m)
+        ]
         if len(m_cols) > 1:
             tname = f"Total {m.capitalize()}"
             out[tname] = out[m_cols].sum(axis=1)
 
-    non_total = [first_col] + [c for c in out.columns[1:] if not str(c).lower().startswith("total ")]
+    non_total = [first_col] + [
+        c for c in out.columns[1:] if not str(c).lower().startswith("total ")
+    ]
     totals = [c for c in out.columns[1:] if str(c).lower().startswith("total ")]
     out = out[non_total + totals]
 
     for m in metrics:
-        m_cols = [c for c in out.columns[1:]
-                  if _ends_with_metric(c, m) and not _is_total_metric(c, m)]
+        m_cols = [
+            c
+            for c in out.columns[1:]
+            if _ends_with_metric(c, m) and not _is_total_metric(c, m)
+        ]
         t_cols = [c for c in out.columns[1:] if _is_total_metric(c, m)]
         if len(m_cols) <= 1 and t_cols:
             out = out.drop(columns=t_cols, errors="ignore")
@@ -168,12 +189,19 @@ def _append_totals_like_excel(pivot: pd.DataFrame, metrics: List[str], weekly: b
 
     return out
 
+
 def _compute_pivots(df: pd.DataFrame, params: Dict) -> List[dict]:
     date_var = params.get("date_var", "date").strip()
     date_grain = (params.get("date_grain", "weekly") or "weekly").strip().lower()
-    QC_variables: List[str] = [v.strip() for v in params.get("QC_variables", []) if v.strip()]
-    columns_breakdown: List[str] = [v.strip() for v in params.get("columns_breakdown", []) if v.strip()]
-    metrics_param: List[str] = [m.strip() for m in params.get("metrics", []) if m.strip()]
+    QC_variables: List[str] = [
+        v.strip() for v in params.get("QC_variables", []) if v.strip()
+    ]
+    columns_breakdown: List[str] = [
+        v.strip() for v in params.get("columns_breakdown", []) if v.strip()
+    ]
+    metrics_param: List[str] = [
+        m.strip() for m in params.get("metrics", []) if m.strip()
+    ]
     metric_var = params.get("metric_var", "metric").strip()
     value_var = params.get("value_var", "value").strip()
     week_start_day = (params.get("week_start_day", "") or "").strip()
@@ -191,15 +219,27 @@ def _compute_pivots(df: pd.DataFrame, params: Dict) -> List[dict]:
     df[date_var] = pd.to_datetime(df[date_var], errors="coerce")
 
     if date_grain == "weekly" and week_start_day:
-        valid_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        valid_days = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
         if week_start_day in valid_days:
             target_idx = valid_days.index(week_start_day)
             mask = df[date_var].notna()
             delta = (df.loc[mask, date_var].dt.weekday - target_idx) % 7
-            df.loc[mask, date_var] = df.loc[mask, date_var] - pd.to_timedelta(delta, unit="D")
+            df.loc[mask, date_var] = df.loc[mask, date_var] - pd.to_timedelta(
+                delta, unit="D"
+            )
 
     colmap = {c.strip().lower(): c for c in df.columns}
-    has_long = (colmap.get(metric_var.lower()) in df.columns) and (colmap.get(value_var.lower()) in df.columns)
+    has_long = (colmap.get(metric_var.lower()) in df.columns) and (
+        colmap.get(value_var.lower()) in df.columns
+    )
 
     if not has_long and metrics_param:
         wanted = {m.lower() for m in metrics_param}
@@ -208,18 +248,17 @@ def _compute_pivots(df: pd.DataFrame, params: Dict) -> List[dict]:
         df[metric_var] = df[metric_var].astype(str).str.strip()
         Metrics = sorted(df[metric_var].dropna().unique().tolist())
     else:
-        raise KeyError("PPT generation requires long format (metric/value) OR explicit 'metrics' list.")
+        raise KeyError(
+            "PPT generation requires long format (metric/value) OR explicit 'metrics' list."
+        )
 
     import itertools
+
     if QC_variables:
         value_lists = []
         for v in QC_variables:
             vals = (
-                pd.Series(df[v])
-                .dropna()
-                .astype(str)
-                .map(lambda s: s.strip())
-                .tolist()
+                pd.Series(df[v]).dropna().astype(str).map(lambda s: s.strip()).tolist()
             )
             vals = sorted(set(vals), key=str)
             value_lists.append(vals)
@@ -236,85 +275,114 @@ def _compute_pivots(df: pd.DataFrame, params: Dict) -> List[dict]:
         if df_f.empty:
             continue
         valid_breakdown = [
-            c for c in columns_breakdown
-            if c in df_f.columns and df_f[c].dropna().astype(str).str.strip().ne("").any()
+            c
+            for c in columns_breakdown
+            if c in df_f.columns
+            and df_f[c].dropna().astype(str).str.strip().ne("").any()
         ]
 
         group_cols = [date_var] + QC_variables + valid_breakdown
 
         if has_long:
-            df_week_long = df_f.groupby(group_cols + [metric_var], as_index=False)[value_var].sum()
-            long = df_week_long.rename(columns={metric_var: "metric", value_var: "value"})
+            df_week_long = df_f.groupby(group_cols + [metric_var], as_index=False)[
+                value_var
+            ].sum()
+            long = df_week_long.rename(
+                columns={metric_var: "metric", value_var: "value"}
+            )
         else:
             agg = {m: "sum" for m in Metrics}
             df_week = df_f.groupby(group_cols, as_index=False).agg(agg)
             id_vars = [date_var] + valid_breakdown
-            long = df_week.melt(id_vars=id_vars, value_vars=list(Metrics),
-                                var_name="metric", value_name="value")
+            long = df_week.melt(
+                id_vars=id_vars,
+                value_vars=list(Metrics),
+                var_name="metric",
+                value_name="value",
+            )
 
         long["combined"] = (
             long[valid_breakdown]
-                .fillna("")
-                .astype(str)
-                .agg(" ".join, axis=1)
-                .str.replace(r"\s+", " ", regex=True)
-                .str.strip()
+            .fillna("")
+            .astype(str)
+            .agg(" ".join, axis=1)
+            .str.replace(r"\s+", " ", regex=True)
+            .str.strip()
             + " "
             + long["metric"].astype(str).str.strip()
-            if valid_breakdown else
-            long["metric"].astype(str).str.strip()
+            if valid_breakdown
+            else long["metric"].astype(str).str.strip()
         )
 
         pivot_week = (
             long.groupby([date_var, "combined"], as_index=False)["value"]
-                .sum().pivot(index=date_var, columns="combined", values="value")
-                .fillna(0).reset_index()
+            .sum()
+            .pivot(index=date_var, columns="combined", values="value")
+            .fillna(0)
+            .reset_index()
         )
         pivot_week = _append_totals_like_excel(pivot_week, Metrics, weekly=True)
 
         df_f = df_f[df_f[date_var].notna()]
-        df_f["Quarter"] = df_f[date_var].dt.to_period("Q").astype(str).str.replace("Q", " Q")
+        df_f["Quarter"] = (
+            df_f[date_var].dt.to_period("Q").astype(str).str.replace("Q", " Q")
+        )
         q_group = ["Quarter"] + QC_variables + valid_breakdown
 
         if has_long:
-            df_q_long = df_f.groupby(q_group + [metric_var], as_index=False)[value_var].sum()
-            q_long = df_q_long.rename(columns={metric_var: "metric", value_var: "value"})
+            df_q_long = df_f.groupby(q_group + [metric_var], as_index=False)[
+                value_var
+            ].sum()
+            q_long = df_q_long.rename(
+                columns={metric_var: "metric", value_var: "value"}
+            )
         else:
-            df_q = df_f.groupby(q_group, as_index=False).agg({m: "sum" for m in Metrics})
-            q_long = df_q.melt(id_vars=["Quarter"] + valid_breakdown, value_vars=list(Metrics),
-                               var_name="metric", value_name="value")
+            df_q = df_f.groupby(q_group, as_index=False).agg(
+                {m: "sum" for m in Metrics}
+            )
+            q_long = df_q.melt(
+                id_vars=["Quarter"] + valid_breakdown,
+                value_vars=list(Metrics),
+                var_name="metric",
+                value_name="value",
+            )
 
         q_long["combined"] = (
             q_long[valid_breakdown]
-                .fillna("")
-                .astype(str)
-                .agg(" ".join, axis=1)
-                .str.replace(r"\s+", " ", regex=True)
-                .str.strip()
+            .fillna("")
+            .astype(str)
+            .agg(" ".join, axis=1)
+            .str.replace(r"\s+", " ", regex=True)
+            .str.strip()
             + " "
             + q_long["metric"].astype(str).str.strip()
-            if valid_breakdown else
-            q_long["metric"].astype(str).str.strip()
+            if valid_breakdown
+            else q_long["metric"].astype(str).str.strip()
         )
 
         pivot_q = (
             q_long.groupby(["Quarter", "combined"], as_index=False)["value"]
-                .sum().pivot(index="Quarter", columns="combined", values="value")
-                .fillna(0).reset_index()
+            .sum()
+            .pivot(index="Quarter", columns="combined", values="value")
+            .fillna(0)
+            .reset_index()
         )
         pivot_q = _append_totals_like_excel(pivot_q, Metrics, weekly=False)
 
         sheet_name = "_".join(map(str, combo)) if QC_variables else "General"
 
-        sections.append({
-            "sheet_name": sheet_name[:31],
-            "pivot_week": pivot_week,
-            "pivot_q": pivot_q,
-            "metrics": Metrics,
-            "palette": graph_palette, 
-        })
+        sections.append(
+            {
+                "sheet_name": sheet_name[:31],
+                "pivot_week": pivot_week,
+                "pivot_q": pivot_q,
+                "metrics": Metrics,
+                "palette": graph_palette,
+            }
+        )
 
     return sections
+
 
 def _build_q_summary_metric(pivot_q: pd.DataFrame, metric: str) -> pd.DataFrame:
     if pivot_q.empty or pivot_q.shape[1] == 0:
@@ -337,7 +405,10 @@ def _build_q_summary_metric(pivot_q: pd.DataFrame, metric: str) -> pd.DataFrame:
         out[c] = pivot_q[c]
     return out
 
-def _align_cats_and_series(cats: List, series_list: List[List[float]]) -> Tuple[List, List[List[float]]]:
+
+def _align_cats_and_series(
+    cats: List, series_list: List[List[float]]
+) -> Tuple[List, List[List[float]]]:
     cats = _to_list(cats)
     lengths = [len(cats)] + [len(_to_list(s)) for s in series_list]
     if not lengths:
@@ -347,9 +418,15 @@ def _align_cats_and_series(cats: List, series_list: List[List[float]]) -> Tuple[
     out = []
     for s in series_list:
         v = _to_list(s)[:m]
-        v = pd.to_numeric(pd.Series(v), errors="coerce").fillna(0.0).astype(float).tolist()
+        v = (
+            pd.to_numeric(pd.Series(v), errors="coerce")
+            .fillna(0.0)
+            .astype(float)
+            .tolist()
+        )
         out.append(v)
     return cats, out
+
 
 def _add_metric_chart(
     slide,
@@ -368,16 +445,23 @@ def _add_metric_chart(
     date_col = pivot_week.columns[0]
     dates = pd.to_datetime(pivot_week[date_col], errors="coerce")
     cats = dates.dt.strftime("%b '%y").fillna("").tolist()
-    series_cols = [c for c in pivot_week.columns[1:]
-                   if _ends_with_metric(c, metric) and not _is_total_metric(c, metric)]
+    series_cols = [
+        c
+        for c in pivot_week.columns[1:]
+        if _ends_with_metric(c, metric) and not _is_total_metric(c, metric)
+    ]
 
     fallback_used = False
     if not series_cols:
-        total_candidates = [c for c in pivot_week.columns if _is_total_metric(c, metric)]
+        total_candidates = [
+            c for c in pivot_week.columns if _is_total_metric(c, metric)
+        ]
         if total_candidates:
             series_cols = [total_candidates[0]]
         else:
-            metric_cols = [c for c in pivot_week.columns[1:] if _ends_with_metric(c, metric)]
+            metric_cols = [
+                c for c in pivot_week.columns[1:] if _ends_with_metric(c, metric)
+            ]
             if metric_cols:
                 pivot_week = pivot_week.copy()
                 pivot_week["__tmp_total__"] = pivot_week[metric_cols].sum(axis=1)
@@ -404,7 +488,9 @@ def _add_metric_chart(
     chart_data.categories = cats
     for name, vals in zip(series_cols, series_values):
         friendly = name
-        if fallback_used and (name == "__tmp_total__" or _is_total_metric(name, metric)):
+        if fallback_used and (
+            name == "__tmp_total__" or _is_total_metric(name, metric)
+        ):
             friendly = f"Total {metric.capitalize()}"
         chart_data.add_series(friendly, vals)
 
@@ -417,7 +503,7 @@ def _add_metric_chart(
     chart = slide.shapes.add_chart(chart_type, x, y, cx, cy, chart_data).chart
 
     # --- Styling ---
-    chart.has_title = False 
+    chart.has_title = False
     try:
         chart.chart_style = 2
     except Exception:
@@ -431,7 +517,7 @@ def _add_metric_chart(
     chart.value_axis.tick_labels.font.size = Pt(9)
     chart.value_axis.has_major_gridlines = False
 
-    pal = (palette or [])
+    pal = palette or []
     for idx, s in enumerate(getattr(chart, "series", [])):
         try:
             color_hex = pal[idx % len(pal)] if pal else None
@@ -450,6 +536,7 @@ def _add_metric_chart(
 
     return chart
 
+
 def _add_metric_summary_table(slide, q3: pd.DataFrame, tab_header_hex: str):
     if q3.empty or q3.shape[1] == 0:
         return
@@ -459,7 +546,9 @@ def _add_metric_summary_table(slide, q3: pd.DataFrame, tab_header_hex: str):
     table_left, table_top = Inches(0.5), Inches(1.0)
     table_w, table_h = Inches(9.0), Inches(2.2)
 
-    tbl_shape = slide.shapes.add_table(rows, cols, table_left, table_top, table_w, table_h)
+    tbl_shape = slide.shapes.add_table(
+        rows, cols, table_left, table_top, table_w, table_h
+    )
     table = tbl_shape.table
 
     for j in range(cols):
@@ -492,16 +581,25 @@ def _add_metric_summary_table(slide, q3: pd.DataFrame, tab_header_hex: str):
             p.font.size = Pt(9)
             p.alignment = PP_ALIGN.RIGHT if j > 0 else PP_ALIGN.LEFT
 
-def _add_metric_slide(pres, sheet_name: str, pivot_week: pd.DataFrame, pivot_q: pd.DataFrame,
-                      metric: str, tab_header_hex: str, palette: List[str]):
 
-    blank = pres.slide_layouts[6] if len(pres.slide_layouts) > 6 else pres.slide_layouts[0]
+def _add_metric_slide(
+    pres,
+    sheet_name: str,
+    pivot_week: pd.DataFrame,
+    pivot_q: pd.DataFrame,
+    metric: str,
+    tab_header_hex: str,
+    palette: List[str],
+):
+    blank = (
+        pres.slide_layouts[6] if len(pres.slide_layouts) > 6 else pres.slide_layouts[0]
+    )
     slide = pres.slides.add_slide(blank)
 
     title_left = Inches(0.5)
-    title_top  = Inches(0.3)
-    title_w    = pres.slide_width - Inches(1.0)
-    title_h    = Inches(0.6)
+    title_top = Inches(0.3)
+    title_w = pres.slide_width - Inches(1.0)
+    title_h = Inches(0.6)
 
     title_box = slide.shapes.add_textbox(title_left, title_top, title_w, title_h)
     tf = title_box.text_frame
@@ -531,9 +629,9 @@ def _add_metric_slide(pres, sheet_name: str, pivot_week: pd.DataFrame, pivot_q: 
     q3 = _build_q_summary_metric(pivot_q, metric)
 
     table_left = usable_left
-    table_top  = usable_top
-    table_w    = usable_width
-    table_max_h= table_target_h
+    table_top = usable_top
+    table_w = usable_width
+    table_max_h = table_target_h
 
     used_table_h = _add_table_in_rect(
         slide=slide,
@@ -544,7 +642,7 @@ def _add_metric_slide(pres, sheet_name: str, pivot_week: pd.DataFrame, pivot_q: 
         max_height=table_max_h,
         header_hex=tab_header_hex,
         min_body_row_h=Inches(0.22),
-        header_row_h=Inches(0.28)
+        header_row_h=Inches(0.28),
     )
 
     space_left_for_chart = usable_height - used_table_h - gap
@@ -564,14 +662,14 @@ def _add_metric_slide(pres, sheet_name: str, pivot_week: pd.DataFrame, pivot_q: 
             header_hex=tab_header_hex,
             min_body_row_h=min_body_h,
             header_row_h=header_h,
-            prefer_rows=max_body_rows
+            prefer_rows=max_body_rows,
         )
         space_left_for_chart = usable_height - used_table_h - gap
 
     chart_left = usable_left
-    chart_top  = table_top + used_table_h + gap
-    chart_w    = usable_width
-    chart_h    = max(MIN_CHART_H, space_left_for_chart)
+    chart_top = table_top + used_table_h + gap
+    chart_w = usable_width
+    chart_h = max(MIN_CHART_H, space_left_for_chart)
 
     _add_metric_chart(
         slide=slide,
@@ -579,8 +677,9 @@ def _add_metric_slide(pres, sheet_name: str, pivot_week: pd.DataFrame, pivot_q: 
         metric=metric,
         area_if_many=True,
         palette=palette,
-        rect=(chart_left, chart_top, chart_w, chart_h)
+        rect=(chart_left, chart_top, chart_w, chart_h),
     )
+
 
 def _add_metric_vs_cost_slide(
     pres,
@@ -595,10 +694,14 @@ def _add_metric_vs_cost_slide(
     if not cost_var or _norm(metric) == _norm(cost_var) or pivot_week.empty:
         return
 
-    blank = pres.slide_layouts[6] if len(pres.slide_layouts) > 6 else pres.slide_layouts[0]
+    blank = (
+        pres.slide_layouts[6] if len(pres.slide_layouts) > 6 else pres.slide_layouts[0]
+    )
     slide = pres.slides.add_slide(blank)
 
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(9.0), Inches(0.6))
+    title_box = slide.shapes.add_textbox(
+        Inches(0.5), Inches(0.3), Inches(9.0), Inches(0.6)
+    )
     tf = title_box.text_frame
     tf.text = f"{sheet_name} — {metric} vs {cost_var}"
     tf.paragraphs[0].font.size = Pt(18)
@@ -610,16 +713,27 @@ def _add_metric_vs_cost_slide(
     def sum_or_total_list(df: pd.DataFrame, base: str) -> List[float]:
         tot_cols = [c for c in df.columns if _is_total_metric(c, base)]
         if tot_cols:
-            return pd.to_numeric(df[tot_cols[0]], errors="coerce").fillna(0).astype(float).tolist()
+            return (
+                pd.to_numeric(df[tot_cols[0]], errors="coerce")
+                .fillna(0)
+                .astype(float)
+                .tolist()
+            )
 
         cols = [c for c in df.columns[1:] if _ends_with_metric(c, base)]
         if not cols:
             return [0.0] * len(df)
         if len(cols) == 1:
-            return pd.to_numeric(df[cols[0]], errors="coerce").fillna(0).astype(float).tolist()
+            return (
+                pd.to_numeric(df[cols[0]], errors="coerce")
+                .fillna(0)
+                .astype(float)
+                .tolist()
+            )
 
         s = (
-            df[cols].apply(pd.to_numeric, errors="coerce")
+            df[cols]
+            .apply(pd.to_numeric, errors="coerce")
             .fillna(0)
             .sum(axis=1)
             .astype(float)
@@ -661,9 +775,13 @@ def _add_metric_vs_cost_slide(
             pass
 
 
-def run(params: Dict, template_path: Optional[str], df: pd.DataFrame, output_path: str) -> str:
+def run(
+    params: Dict, template_path: Optional[str], df: pd.DataFrame, output_path: str
+) -> str:
     pres = Presentation(template_path) if template_path else Presentation()
-    blank = pres.slide_layouts[6] if len(pres.slide_layouts) > 6 else pres.slide_layouts[0]
+    blank = (
+        pres.slide_layouts[6] if len(pres.slide_layouts) > 6 else pres.slide_layouts[0]
+    )
 
     if not template_path:
         pres.slides.add_slide(blank)
@@ -672,11 +790,15 @@ def run(params: Dict, template_path: Optional[str], df: pd.DataFrame, output_pat
     sections = _compute_pivots(df, params)
     cost_var = (params.get("cost_var", "") or "").strip()
     tab_header_hex = (params.get("tab_color", "") or "").strip()
-    dual_axis_chart_name = (params.get("dual_axis_chart_name", "") or "DualAxisChart").strip()
+    dual_axis_chart_name = (
+        params.get("dual_axis_chart_name", "") or "DualAxisChart"
+    ).strip()
 
     for sec in sections:
         s_title = pres.slides.add_slide(blank)
-        tb = s_title.shapes.add_textbox(Inches(0.5), pres.slide_height/2 - Inches(0.5), Inches(9.0), Inches(1.0))
+        tb = s_title.shapes.add_textbox(
+            Inches(0.5), pres.slide_height / 2 - Inches(0.5), Inches(9.0), Inches(1.0)
+        )
         tf = tb.text_frame
         p = tf.paragraphs[0]
         p.text = f"{sec['sheet_name']}"

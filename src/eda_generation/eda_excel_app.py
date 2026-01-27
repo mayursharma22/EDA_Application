@@ -13,10 +13,15 @@ from .eda_ppt_generation import run as eda_ppt_run
 
 st.set_page_config(page_title="EDA Generation", layout="wide")
 
+
 # ---------- helpers ----------
 @st.cache_data(show_spinner=False)
-def build_eda_ppt_bytes(file_bytes: bytes, file_name: str, params: dict, template_bytes: bytes | None) -> bytes:
-    import os, tempfile
+def build_eda_ppt_bytes(
+    file_bytes: bytes, file_name: str, params: dict, template_bytes: bytes | None
+) -> bytes:
+    import os
+    import tempfile
+
     with tempfile.TemporaryDirectory() as tmpdir:
         src_path = os.path.join(tmpdir, file_name)
         with open(src_path, "wb") as f:
@@ -28,9 +33,12 @@ def build_eda_ppt_bytes(file_bytes: bytes, file_name: str, params: dict, templat
                 tf.write(template_bytes)
         df = pd.read_csv(src_path)
         out_path = os.path.join(tmpdir, "EDA_Deck.pptx")
-        eda_ppt_run(params=params, template_path=template_path, df=df, output_path=out_path)
+        eda_ppt_run(
+            params=params, template_path=template_path, df=df, output_path=out_path
+        )
         with open(out_path, "rb") as fh:
             return fh.read()
+
 
 def _get_sample_csv_bytes() -> bytes:
     sample_csv = (
@@ -54,6 +62,7 @@ def _hash_file_like(file) -> str:
     if hasattr(file, "seek"):
         file.seek(0)
     return hashlib.sha256(data).hexdigest()
+
 
 def _auto_detect_date_column(
     df: pd.DataFrame, sample_max: int = 5000, threshold: float = 0.6
@@ -213,19 +222,22 @@ def eda_generation():
         st.info("Upload a CSV file to begin")
 
         with st.expander("📄 **Sample file format** ", expanded=True):
-
             import io
+
             sample_bytes = _get_sample_csv_bytes()
             sample_df = pd.read_csv(io.BytesIO(sample_bytes))
             st.dataframe(sample_df, use_container_width=True)
 
         return
 
-    if "_use_sample_csv_bytes" in st.session_state and st.session_state["_use_sample_csv_bytes"]:
+    if (
+        "_use_sample_csv_bytes" in st.session_state
+        and st.session_state["_use_sample_csv_bytes"]
+    ):
         import io
+
         up = io.BytesIO(st.session_state["_use_sample_csv_bytes"])
         up.name = "eda_sample.csv"
-
 
     df = pd.read_csv(up)
     df.columns = [str(c).strip() for c in df.columns]
@@ -963,15 +975,15 @@ def eda_generation():
             st.session_state.proceed_confirmed = True
 
     # ------------------------- Proceed ------------------------- #
-    
-    # ------------------------- Export -------------------------- #   
+
+    # ------------------------- Export -------------------------- #
     # st.markdown("#### Export")
 
     # ppt_choice = st.radio(
-    #     "Do you want to generate PPT Deck?", 
-    #     options=["No", "Yes"], 
-    #     index=0, 
-    #     horizontal=True, 
+    #     "Do you want to generate PPT Deck?",
+    #     options=["No", "Yes"],
+    #     index=0,
+    #     horizontal=True,
     #     key="eda_generate_ppt_choice",
     # )
 
@@ -984,7 +996,6 @@ def eda_generation():
     #     )
     #     if ppt_up:
     #         ppt_template_bytes = ppt_up.getvalue()
-
 
     # params["graph_colors"] = st.session_state.get("graph_colors", [])
     # params["tab_color"] = st.session_state.get("tab_color", "")
@@ -1037,36 +1048,25 @@ def eda_generation():
     #     if not export_enabled_colors:
     #         st.caption("Set required colors and click Proceed to enable Export button.")
 
-    
     st.markdown("#### Export")
 
-    left, right = st.columns([1,1])
+    left, right = st.columns([1, 1])
 
     with left:
         st.markdown('<div class="align-top">', unsafe_allow_html=True)
         st.markdown("###### Choose files to download")
         want_excel = st.checkbox(
-            "Generate Excel Workbook",
-            value=True,
-            key="export_excel"
+            "Generate Excel Workbook", value=True, key="export_excel"
         )
 
-        want_ppt = st.checkbox(
-            "Generate PPT Deck",
-            value=True,
-            key="export_ppt"
-        )
+        want_ppt = st.checkbox("Generate PPT Deck", value=True, key="export_ppt")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
     with right:
         st.markdown('<div class="align-top">', unsafe_allow_html=True)
         st.markdown("###### Upload PPTX template")
-        ppt_up = st.file_uploader(
-            "",
-            type=["pptx"],
-            key="eda_ppt_template_uploader"
-        )
+        ppt_up = st.file_uploader("", type=["pptx"], key="eda_ppt_template_uploader")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1112,12 +1112,9 @@ def eda_generation():
 
     if export_enabled:
         with st.spinner("Preparing output..."):
-
             if want_excel:
                 excel_bytes = build_eda_excel_bytes(
-                    file_bytes=up.getvalue(),
-                    file_name=up.name,
-                    params=params
+                    file_bytes=up.getvalue(), file_name=up.name, params=params
                 )
 
             if want_ppt:
@@ -1125,11 +1122,13 @@ def eda_generation():
                     file_bytes=up.getvalue(),
                     file_name=up.name,
                     params=params,
-                    template_bytes=ppt_template_bytes
+                    template_bytes=ppt_template_bytes,
                 )
 
     if want_excel and want_ppt:
-        import io, zipfile
+        import io
+        import zipfile
+
         zip_buffer = io.BytesIO()
 
         if export_enabled:
@@ -1143,7 +1142,7 @@ def eda_generation():
             data=zip_buffer.getvalue() if export_enabled else b"",
             file_name="EDA_Output.zip",
             mime="application/zip",
-            disabled=not export_enabled
+            disabled=not export_enabled,
         )
 
     elif want_excel:
@@ -1152,7 +1151,7 @@ def eda_generation():
             data=excel_bytes if export_enabled else b"",
             file_name="EDA_Final_Output.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            disabled=not export_enabled
+            disabled=not export_enabled,
         )
 
     elif want_ppt:
@@ -1161,6 +1160,6 @@ def eda_generation():
             data=ppt_bytes if export_enabled else b"",
             file_name="EDA_Deck.pptx",
             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            disabled=not export_enabled
+            disabled=not export_enabled,
         )
     # ------------------------- Export ------------------------- #
