@@ -1,13 +1,18 @@
-from typing import Optional, Dict, List, Tuple
+from typing import Optional
+from typing import Dict
+from typing import List
+from typing import Tuple
 import numpy as np
 import pandas as pd
 
 from pptx import Presentation
-from pptx.util import Inches, Pt
+from pptx.util import Inches
+from pptx.util import Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from pptx.chart.data import CategoryChartData
-from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
+from pptx.enum.chart import XL_CHART_TYPE
+from pptx.enum.chart import XL_LEGEND_POSITION
 
 
 #------------ utilities ------------
@@ -62,8 +67,6 @@ def _is_hex_color(s: str) -> bool:
     except ValueError:
         return False
     
-from pptx.util import Inches
-
 def _add_table_in_rect(
     slide,
     df: pd.DataFrame,
