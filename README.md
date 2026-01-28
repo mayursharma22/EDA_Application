@@ -75,7 +75,6 @@ EDA_Application/
 ---
 # 📌 Run Application on Local Machine
 
----
 ## 🖥️ Setup Guide (Windows)
 Below is the complete one‑time setup process for Windows.
 ### ✅ Prerequisites
@@ -83,6 +82,7 @@ Below is the complete one‑time setup process for Windows.
 - PowerShell (Admin)
 - Git installed
 - Internet connection
+```
 ### 🔧 Step 1: Install UV (Python Environment Manager)
 UV is a fast environment & package manager. To install, open PowerShell (Admin) and run:
 ```
