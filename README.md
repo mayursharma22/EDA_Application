@@ -82,7 +82,7 @@ Below is the complete one‑time setup process for Windows.
 - PowerShell (Admin)
 - Git installed
 - Internet connection
-
+--
 ### 🔧 Step 1: Install UV (Python Environment Manager)
 UV is a fast environment & package manager. To install, open PowerShell (Admin) and run:
 ```
@@ -108,9 +108,7 @@ git clone https://github.com/mayursharma22/EDA_Application.git
 uv sync -n
 ```
 ![alt text](image-3.png)
-
 --
-
 ## ▶️ Run the Application
 Run Streamlit using UV from the project folder: After setting up the application on your local machine, simply run the following command in your terminal (CMD/Git Bash) from the folder where you cloned the repository.
 
