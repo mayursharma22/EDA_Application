@@ -1,4 +1,4 @@
-#                               **EDA_Application**
+# **EDA_Application**
 
 A Streamlit-powered toolkit that helps users **prepare raw marketing/analytics data** (single or multi-file) and **generate a formatted Excel EDA workbook** with pivots, totals, and publication-ready charts. The app ships with two tools accessible from the sidebar:
 
@@ -74,17 +74,15 @@ EDA_Application/
 
 ---
 # 📌 Run Application on Local Machine
-## 🖥️ Setup Guide (Windows)
-Below is the complete one‑time setup process for Windows.
 
 ---
+## 🖥️ Setup Guide (Windows)
+Below is the complete one‑time setup process for Windows.
 ### ✅ Prerequisites
 - Windows OS
 - PowerShell (Admin)
 - Git installed
 - Internet connection
-
----
 ### 🔧 Step 1: Install UV (Python Environment Manager)
 UV is a fast environment & package manager. To install, open PowerShell (Admin) and run:
 ```
@@ -100,8 +98,6 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 git clone https://github.com/mayursharma22/EDA_Application.git
 ```
 ![alt text](image-1.png)
-
----
 ### 📂 Step 3: Set Up Environment
 1. Navigate to the cloned repository folder.
 ![alt text](image-2.png)
