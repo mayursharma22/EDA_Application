@@ -1,4 +1,4 @@
-# **EDA_Application**
+#                               **EDA_Application**
 
 A Streamlit-powered toolkit that helps users **prepare raw marketing/analytics data** (single or multi-file) and **generate a formatted Excel EDA workbook** with pivots, totals, and publication-ready charts. The app ships with two tools accessible from the sidebar:
 
@@ -46,7 +46,6 @@ EDA_Application/
 3. Configure date/channel/columns.
 4. Melt/group/export.
 
----
 ## 2) EDA Generation (CSV → Excel & PPT)
 **What it does**
 - Upload long-format CSV and preview.
