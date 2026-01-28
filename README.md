@@ -29,11 +29,13 @@ EDA_Application/
 - **`src/data_preperation/eda_data_processing.py`** — the **Data Preparation** tool (single-file and multi-file flows).
 - **`src/eda_generation/eda_excel_app.py`** — the **EDA Generation** Streamlit UI that gathers parameters and triggers Excel creation.
 - **`src/eda_generation/eda_excel_generation.py`** — the Excel writer/formatter that builds sheets, totals, and charts.
+- **`src/eda_generation/eda_ppt_generation.py`** — the PPT writer/formatter that builds summary sheets and charts.
 
 ---
 
 # 🧭 Usage
-## 1) Data Preparation (CSV/XLSX)
+
+## 1) Data Preparation (CSV/XLSX → CSV)
 **What it does**
 - Upload one or more files (CSV or Excel) and preview them.
 - Pick/rename a **date column** with robust parsing.
@@ -45,30 +47,29 @@ EDA_Application/
 
 **How to use**
 1. In sidebar, choose **Data Preparation**.
-2. Upload datasets.
+2. Upload Wide.Semi-Wide format datasets.
 3. Configure date/channel/columns.
 4. Melt/group/export.
 
 ---
 
-## 2) EDA Generation (CSV → Excel)
+## 2) EDA Generation (CSV → Excel & PPT)
 **What it does**
-- Upload CSV and preview.
+- Upload long format CSV and preview.
 - Configure date, granularity, metrics, breakdowns.
 - Customize visual colors.
-- Generate Excel with pivots, charts, summary sheets.
+- Generate Excel & PPT Deck with pivots, charts, summary sheets.
 
 **How to use**
 1. Choose **EDA Generation**.
 2. Choose parameters.
-3. Export Excel.
+3. Export Excel & PPT Deck.
 
 ---
 
 # 🧩 Design Notes
-- Data Prep accepts CSV/XLSX; EDA expects CSV.
+- **Data Preparation** accepts CSV/XLSX in Wide/Semi-Wide format; **EDA Generation**  expects CSV in long format.
 - Sheet names ≤ 31 chars.
-- Currency formatting for cost/spend.
 
 ---
 
@@ -83,14 +84,14 @@ EDA_Application/
 
 ---
 
-# 🖥️ Local Run (Updated with Full Guide)
-Below is the complete, step‑by‑step local run process combining README and the Word setup guide.
+# 📌 Run Applocation in Local Machine
+
+## 🖥️ Guide to Setup Application in Local Machine (Windows)
+Below is the complete, step‑by‑step one time process to setup application in local machine for windows machine
 
 ---
 
-# 📌 Local Setup Guide (Windows)
-
-## ✅ Prerequisites
+### ✅ Prerequisites
 - Windows OS
 - PowerShell (Admin)
 - Git installed
@@ -99,15 +100,12 @@ Below is the complete, step‑by‑step local run process combining README and t
 ---
 
 ## 🔧 Step 1: Install UV (Python Environment Manager)
-UV is a fast environment & package manager.
+UV is a fast environment & package manager. To Download UV in your Machine Open PowerShell in your Windows Machine and copy the following command over there
 
-### 1. Open UV installation page:
-https://docs.astral.sh/uv/getting-started/installation/
-
-### 2. Run installation command in PowerShell:
 ```
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
+![alt text](image.png)
 
 ---
 
