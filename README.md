@@ -82,14 +82,14 @@ Below is the complete one‑time setup process for Windows.
 - PowerShell (Admin)
 - Git installed
 - Internet connection
-```
+
 ### 🔧 Step 1: Install UV (Python Environment Manager)
 UV is a fast environment & package manager. To install, open PowerShell (Admin) and run:
 ```
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 ![alt text](image.png)
----
+--
 ### 📥 Step 2: Clone the Repository
 1. Visit GitHub repo: https://github.com/mayursharma22/EDA_Application
 2. Copy the HTTPS clone URL.
