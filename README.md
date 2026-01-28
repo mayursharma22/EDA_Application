@@ -98,6 +98,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 git clone https://github.com/mayursharma22/EDA_Application.git
 ```
 ![alt text](image-1.png)
+--
 ### 📂 Step 3: Set Up Environment
 1. Navigate to the cloned repository folder.
 ![alt text](image-2.png)
@@ -108,7 +109,8 @@ uv sync -n
 ```
 ![alt text](image-3.png)
 
----
+--
+
 ## ▶️ Run the Application
 Run Streamlit using UV from the project folder: After setting up the application on your local machine, simply run the following command in your terminal (CMD/Git Bash) from the folder where you cloned the repository.
 
