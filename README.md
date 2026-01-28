@@ -84,7 +84,7 @@ EDA_Application/
 
 ---
 
-# 📌 Run Applocation in Local Machine
+# 📌 Run Application in Local Machine
 
 ## 🖥️ Guide to Setup Application in Local Machine (Windows)
 Below is the complete, step‑by‑step one time process to setup application in local machine for windows machine
@@ -99,7 +99,7 @@ Below is the complete, step‑by‑step one time process to setup application in
 
 ---
 
-## 🔧 Step 1: Install UV (Python Environment Manager)
+### 🔧 Step 1: Install UV (Python Environment Manager)
 UV is a fast environment & package manager. To Download UV in your Machine Open PowerShell in your Windows Machine and copy the following command over there
 
 ```
@@ -109,38 +109,44 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 
 ---
 
-## 📥 Step 2: Clone the Repository
-1. Visit GitHub repo:
+### 📥 Step 2: Clone the Repository
+1. Visit GitHub repo: To Clone the EDA_Application source code from GitHub to your local machine open below link in your browser
+```
 https://github.com/mayursharma22/EDA_Application
+```
 
 2. Copy HTTPS clone URL.
 
-3. In terminal:
+3. In terminal: Open cmd terminal your desired directory where you want to clone the EDA_Application Repository and run below command.
 ```
 git clone https://github.com/mayursharma22/EDA_Application.git
 ```
+![alt text](image-1.png)
 
 ---
 
-## 📂 Step 3: Set Up Environment
-Navigate to cloned folder and install dependencies:
+### 📂 Step 3: Set Up Environment
+1. Navigate to cloned repository folder: Go to the location where you cloned the repository
+![alt text](image-2.png)
+
+2. Install the required dependencies: Open Terminal (cmd/GitBash) and install dependencies using below command line. 
 ```
 uv sync -n
 ```
+![alt text](image-3.png)
 
 ---
 
-## ▶️ Step 4: Run the Application
-Run Streamlit using UV:
+## ▶️ Run the Application 
+1. Run Streamlit using UV: Once setup Application in Local Machine, you have to run only below command in your Terminal from the folder where you cloned the repository using cmd/Git Bash
 ```
 uv run streamlit run app.py --server.address="localhost"
 ```
+![alt text](image-4.png)
 
 ---
 
-## 🎉 Expected Result
-Your app launches at:
-http://localhost:8000
-If not, open the URL manually.
+2. 🎉 Expected Result
+Your app launches at: http://localhost:8000 If not, open the URL manually.
 
 ---
